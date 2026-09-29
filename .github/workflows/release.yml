@@ -16,6 +16,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache ESP-IDF components
+        uses: actions/cache@v4
+        with:
+          path: |
+            managed_components
+            ~/.cache/Espressif/ComponentManager
+          key: ${{ runner.os }}-idf-v5.5.5-esp32c6-components-${{ hashFiles('dependencies.lock', '**/idf_component.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-idf-v5.5.5-esp32c6-components-
+
+      - name: Cache compiler objects
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ${{ runner.os }}-idf-v5.5.5-esp32c6-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-idf-v5.5.5-esp32c6-ccache-
+
       - name: Configure release
         shell: bash
         run: |
@@ -33,7 +51,7 @@ jobs:
         shell: bash
         run: |
           source /opt/esp/idf/export.sh
-          idf.py reconfigure build
+          idf.py -DCCACHE_ENABLE=1 reconfigure build
 
       - name: Prepare artifacts
         shell: bash
