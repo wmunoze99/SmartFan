@@ -26,7 +26,7 @@ jobs:
           fi
 
           ota_url="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/smart_fan.bin"
-          sed -i "s|^CONFIG_FAN_OTA_RELEASE_URL=.*|CONFIG_FAN_OTA_RELEASE_URL=\"${ota_url}\"|" sdkconfig
+          sed -i "s|^CONFIG_FAN_OTA_RELEASE_URL=.*|CONFIG_FAN_OTA_RELEASE_URL=\"${ota_url}\"|" sdkconfig.defaults
           echo "FIRMWARE_VERSION=${version}" >> "$GITHUB_ENV"
 
       - name: Build
