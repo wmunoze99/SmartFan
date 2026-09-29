@@ -30,7 +30,10 @@ jobs:
           echo "FIRMWARE_VERSION=${version}" >> "$GITHUB_ENV"
 
       - name: Build
-        run: idf.py reconfigure build
+        shell: bash
+        run: |
+          source /opt/esp/idf/export.sh
+          idf.py reconfigure build
 
       - name: Prepare artifacts
         shell: bash
