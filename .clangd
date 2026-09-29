@@ -1,0 +1,15 @@
+CompileFlags:
+  CompilationDatabase: build
+  BuiltinHeaders: QueryDriver
+  Add:
+    - -I/Users/wmunoze/.espressif/v5.5.5/esp-idf/components/esp_lcd/include
+    - -I/Users/wmunoze/.espressif/v5.5.5/esp-idf/components/esp_lcd/interface
+    - -I/Users/wmunoze/Documents/my_projects/fanv2/managed_components/espressif__qrcode/include
+  Remove:
+    - -fno-shrink-wrap
+    - -fstrict-volatile-bitfields
+    - -fno-tree-switch-conversion
+    - -march=*
+
+Diagnostics:
+  UnusedIncludes: None

@@ -1,0 +1,95 @@
+menu "Smart fan hardware"
+
+    config FAN_SPEED_1_GPIO
+        int "Speed 1 relay GPIO"
+        range 0 30
+        default 0
+
+    config FAN_SPEED_2_GPIO
+        int "Speed 2 relay GPIO"
+        range 0 30
+        default 1
+
+    config FAN_SPEED_3_GPIO
+        int "Speed 3 relay GPIO"
+        range 0 30
+        default 2
+
+    config FAN_ROTATION_GPIO
+        int "Rotation relay GPIO"
+        range 0 30
+        default 21
+
+    config FAN_RELAY_ACTIVE_HIGH
+        bool "Relay inputs are active-high"
+        default y
+        help
+            Disable this when a low GPIO level energizes the relay.
+
+    config FAN_RELAY_SWITCH_DELAY_MS
+        int "Break-before-make delay (ms)"
+        range 0 2000
+        default 100
+        help
+            Time with all speed relays off before selecting another speed.
+
+endmenu
+
+menu "Smart fan display"
+
+    config FAN_DISPLAY_ENABLED
+        bool "Enable SSD1306 status display"
+        default y
+
+    config FAN_DISPLAY_SDA_GPIO
+        int "OLED SDA GPIO"
+        depends on FAN_DISPLAY_ENABLED
+        range 0 30
+        default 22
+
+    config FAN_DISPLAY_SCL_GPIO
+        int "OLED SCL GPIO"
+        depends on FAN_DISPLAY_ENABLED
+        range 0 30
+        default 23
+
+    config FAN_DISPLAY_I2C_ADDRESS
+        hex "OLED I2C address"
+        depends on FAN_DISPLAY_ENABLED
+        range 0x08 0x77
+        default 0x3C
+
+endmenu
+
+menu "Smart fan OTA"
+
+    config FAN_OTA_ENABLED
+        bool "Enable GitHub HTTPS OTA"
+        default y
+
+    config FAN_OTA_RELEASE_URL
+        string "Latest firmware URL"
+        depends on FAN_OTA_ENABLED
+        default ""
+        help
+            Public GitHub release URL ending in /releases/latest/download/smart_fan.bin.
+
+    config FAN_OTA_STARTUP_DELAY_SECONDS
+        int "Initial check delay (seconds)"
+        depends on FAN_OTA_ENABLED
+        range 10 3600
+        default 60
+
+    config FAN_OTA_CHECK_INTERVAL_HOURS
+        int "Successful check interval (hours)"
+        depends on FAN_OTA_ENABLED
+        range 1 168
+        default 24
+
+    config FAN_OTA_RETRY_INTERVAL_MINUTES
+        int "Retry interval (minutes)"
+        depends on FAN_OTA_ENABLED
+        range 1 1440
+        default 60
+
+endmenu

@@ -1,0 +1,4 @@
+Setup PIN:          20202021
+Discriminator:      3840
+Manual pairing code: 34970112332
+QR payload:          MT:Y.K9042C00KA0648G00

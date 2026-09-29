@@ -1,0 +1,50 @@
+name: Release firmware
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: espressif/idf:v5.5.5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure release
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag must use vMAJOR.MINOR.PATCH" >&2
+            exit 1
+          fi
+
+          ota_url="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/smart_fan.bin"
+          sed -i "s|^CONFIG_FAN_OTA_RELEASE_URL=.*|CONFIG_FAN_OTA_RELEASE_URL=\"${ota_url}\"|" sdkconfig
+          echo "FIRMWARE_VERSION=${version}" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: idf.py reconfigure build
+
+      - name: Prepare artifacts
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp build/smart_fan.bin dist/smart_fan.bin
+          cp build/smart_fan.elf dist/smart_fan.elf
+          sha256sum dist/smart_fan.bin > dist/smart_fan.sha256
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/smart_fan.bin
+            dist/smart_fan.elf
+            dist/smart_fan.sha256
