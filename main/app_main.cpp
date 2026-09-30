@@ -27,6 +27,11 @@ namespace {
 constexpr char kTag[] = "smart_fan";
 constexpr uint8_t kRockLeftRight = 0x01;
 
+#if CONFIG_FAN_OTA_ENABLED
+static_assert(CONFIG_ESP_MATTER_MAX_DYNAMIC_ENDPOINT_COUNT >= 3,
+              "Root, fan, and OTA action require three Matter endpoints");
+#endif
+
 uint16_t s_fan_endpoint_id = 0;
 #if CONFIG_FAN_OTA_ENABLED
 uint16_t s_ota_endpoint_id = 0;

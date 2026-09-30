@@ -2,6 +2,8 @@ name: Release firmware
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*.*.*"
 
@@ -34,13 +36,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-idf-v5.5.5-esp32c6-ccache-
 
-      - name: Configure release
+      - name: Configure build
         shell: bash
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Tag must use vMAJOR.MINOR.PATCH" >&2
-            exit 1
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Tag must use vMAJOR.MINOR.PATCH" >&2
+              exit 1
+            fi
+          else
+            version="0.0.0-dev"
           fi
 
           ota_url="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/smart_fan.bin"
@@ -52,8 +58,10 @@ jobs:
         run: |
           source /opt/esp/idf/export.sh
           idf.py -DCCACHE_ENABLE=1 reconfigure build
+          ccache --show-stats
 
       - name: Prepare artifacts
+        if: github.ref_type == 'tag'
         shell: bash
         run: |
           mkdir -p dist
@@ -62,6 +70,7 @@ jobs:
           sha256sum dist/smart_fan.bin > dist/smart_fan.sha256
 
       - name: Publish release
+        if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true

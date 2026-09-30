@@ -85,11 +85,12 @@ eim run "idf.py -p /dev/cu.usbmodemXXXX flash" v5.5.5
 
 Direct device downloads require a public repository. For private source code, publish firmware in a separate public release repository or serve it through an authenticated NAS proxy; never embed a GitHub token in firmware.
 
-Release tags must use `vMAJOR.MINOR.PATCH`, for example:
+Release tags must use `vMAJOR.MINOR.PATCH`. Push the commit and let the `main` workflow complete before pushing its tag so the release build can reuse the ESP-IDF component and compiler caches:
 
 ```sh
+git push
 git tag v0.2.0
 git push origin v0.2.0
 ```
 
-`.github/workflows/release.yml` injects the tag as the firmware version, builds with ESP-IDF v5.5.5, and publishes `smart_fan.bin`. The workflow also injects its own public release URL, so release builds do not need the owner or repository name hard-coded.
+`.github/workflows/release.yml` builds pushes to `main` to maintain reusable default-branch caches. Tag builds inject the tag as the firmware version, build with ESP-IDF v5.5.5, and publish `smart_fan.bin`. The workflow also injects its own public release URL, so release builds do not need the owner or repository name hard-coded.
