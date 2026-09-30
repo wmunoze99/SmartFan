@@ -2,8 +2,6 @@ name: Release firmware
 
 on:
   push:
-    branches:
-      - main
     tags:
       - "v*.*.*"
 
