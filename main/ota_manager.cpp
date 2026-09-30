@@ -118,6 +118,8 @@ esp_err_t OtaManager::check_for_update()
     http_config.timeout_ms = 15000;
     http_config.keep_alive_enable = true;
     http_config.max_redirection_count = 5;
+    // GitHub release assets redirect to long signed URLs.
+    http_config.buffer_size_tx = 4096;
 
     esp_https_ota_config_t ota_config = {};
     ota_config.http_config = &http_config;
