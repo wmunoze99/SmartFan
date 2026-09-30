@@ -25,6 +25,7 @@ public:
 
     esp_err_t start();
     void set_network_connected(bool connected);
+    esp_err_t request_check();
     bool update_in_progress() const;
     esp_err_t confirm_running_image();
 

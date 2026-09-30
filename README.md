@@ -69,6 +69,8 @@ eim run "idf.py -p /dev/cu.usbmodemXXXX erase-flash flash" v5.5.5
 
 The firmware checks a GitHub Release URL after Wi-Fi connects. It installs only a newer semantic version and only while the device is commissioned and the fan is off. Matter data in NVS is preserved. ESP-IDF rollback restores the previous image if the updated firmware cannot complete startup.
 
+A second Matter switch endpoint provides an immediate update check from Home Assistant. Rename the new switch to `Check for updates` and turn it on, or place it on a dashboard button. It behaves as a momentary action and reports off after accepting the request. The action is rejected while the fan is running, the device is offline, or another update is in progress. Existing commissioned devices may require a Matter integration reload or recommissioning before Home Assistant discovers the new endpoint.
+
 Configure the URL under `Smart fan OTA` with `idf.py menuconfig`:
 
 ```text

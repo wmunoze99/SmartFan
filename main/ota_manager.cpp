@@ -62,6 +62,20 @@ void OtaManager::set_network_connected(bool connected)
     }
 }
 
+esp_err_t OtaManager::request_check()
+{
+    if (task_ == nullptr || events_ == nullptr || update_in_progress_.load()) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if ((xEventGroupGetBits(events_) & kNetworkConnected) == 0 || !ready_to_update()) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    xTaskNotifyGive(task_);
+    ESP_LOGI(kTag, "Manual OTA check requested");
+    return ESP_OK;
+}
+
 bool OtaManager::update_in_progress() const
 {
     return update_in_progress_.load();
@@ -91,8 +105,9 @@ void OtaManager::task()
     uint32_t delay_seconds = config_.startup_delay_seconds;
 
     while (true) {
-        vTaskDelay(seconds_to_ticks(delay_seconds));
+        ulTaskNotifyTake(pdTRUE, seconds_to_ticks(delay_seconds));
         xEventGroupWaitBits(events_, kNetworkConnected, pdFALSE, pdTRUE, portMAX_DELAY);
+        ulTaskNotifyTake(pdTRUE, 0);
 
         if (!ready_to_update()) {
             delay_seconds = config_.retry_interval_seconds;

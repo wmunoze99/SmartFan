@@ -28,6 +28,9 @@ constexpr char kTag[] = "smart_fan";
 constexpr uint8_t kRockLeftRight = 0x01;
 
 uint16_t s_fan_endpoint_id = 0;
+#if CONFIG_FAN_OTA_ENABLED
+uint16_t s_ota_endpoint_id = 0;
+#endif
 std::atomic_bool s_commissioned = false;
 std::atomic_bool s_commissioning_window_open = false;
 
@@ -232,7 +235,25 @@ esp_err_t handle_fan_mode(uint8_t mode)
 esp_err_t attribute_update_cb(attribute::callback_type_t type, uint16_t endpoint_id, uint32_t cluster_id,
                               uint32_t attribute_id, esp_matter_attr_val_t *value, void *priv_data)
 {
-    if (type != attribute::PRE_UPDATE || endpoint_id != s_fan_endpoint_id || cluster_id != FanControl::Id) {
+    if (type != attribute::PRE_UPDATE) {
+        return ESP_OK;
+    }
+
+#if CONFIG_FAN_OTA_ENABLED
+    if (endpoint_id == s_ota_endpoint_id && cluster_id == OnOff::Id &&
+        attribute_id == OnOff::Attributes::OnOff::Id) {
+        if (!value->val.b) {
+            return ESP_OK;
+        }
+        esp_err_t err = s_ota.request_check();
+        if (err == ESP_OK) {
+            value->val.b = false;
+        }
+        return err;
+    }
+#endif
+
+    if (endpoint_id != s_fan_endpoint_id || cluster_id != FanControl::Id) {
         return ESP_OK;
     }
     if (ota_update_in_progress()) {
@@ -337,6 +358,19 @@ extern "C" void app_main()
     s_fan_endpoint_id = endpoint::get_id(fan_endpoint);
     ESP_ERROR_CHECK(add_fan_features(fan_endpoint));
     ESP_LOGI(kTag, "Fan endpoint created: %u", s_fan_endpoint_id);
+
+#if CONFIG_FAN_OTA_ENABLED
+    endpoint::on_off_plug_in_unit::config_t ota_action_config;
+    ota_action_config.on_off.on_off = false;
+    endpoint_t *ota_endpoint =
+        endpoint::on_off_plug_in_unit::create(node, &ota_action_config, ENDPOINT_FLAG_NONE, &s_ota);
+    if (ota_endpoint == nullptr) {
+        ESP_LOGE(kTag, "Failed to create OTA check endpoint");
+        abort();
+    }
+    s_ota_endpoint_id = endpoint::get_id(ota_endpoint);
+    ESP_LOGI(kTag, "OTA check endpoint created: %u", s_ota_endpoint_id);
+#endif
 
     ESP_ERROR_CHECK(esp_matter::start(app_event_cb));
     restore_fan_state();
