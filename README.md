@@ -69,8 +69,6 @@ eim run "idf.py -p /dev/cu.usbmodemXXXX erase-flash flash" v5.5.5
 
 The firmware checks a GitHub Release URL after Wi-Fi connects. It installs only a newer semantic version and only while the device is commissioned and the fan is off. Matter data in NVS is preserved. ESP-IDF rollback restores the previous image if the updated firmware cannot complete startup.
 
-A second Matter switch endpoint provides an immediate update check from Home Assistant. Rename the new switch to `Check for updates` and turn it on, or place it on a dashboard button. It behaves as a momentary action and reports off after accepting the request. The action is rejected while the fan is running, the device is offline, or another update is in progress. Existing commissioned devices may require a Matter integration reload or recommissioning before Home Assistant discovers the new endpoint.
-
 Configure the URL under `Smart fan OTA` with `idf.py menuconfig`:
 
 ```text
@@ -85,12 +83,11 @@ eim run "idf.py -p /dev/cu.usbmodemXXXX flash" v5.5.5
 
 Direct device downloads require a public repository. For private source code, publish firmware in a separate public release repository or serve it through an authenticated NAS proxy; never embed a GitHub token in firmware.
 
-Release tags must use `vMAJOR.MINOR.PATCH`. Push the commit and let the `main` workflow complete before pushing its tag so the release build can reuse the ESP-IDF component and compiler caches:
+Release tags must use `vMAJOR.MINOR.PATCH`, for example:
 
 ```sh
-git push
 git tag v0.2.0
 git push origin v0.2.0
 ```
 
-`.github/workflows/release.yml` builds pushes to `main` to maintain reusable default-branch caches. Tag builds inject the tag as the firmware version, build with ESP-IDF v5.5.5, and publish `smart_fan.bin`. The workflow also injects its own public release URL, so release builds do not need the owner or repository name hard-coded.
+`.github/workflows/release.yml` injects the tag as the firmware version, builds with ESP-IDF v5.5.5, and publishes `smart_fan.bin`. The workflow also injects its own public release URL, so release builds do not need the owner or repository name hard-coded.
