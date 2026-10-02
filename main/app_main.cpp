@@ -12,6 +12,8 @@
 #include <esp_matter_console.h>
 #include <esp_matter_ota.h>
 
+#include <app/clusters/fan-control-server/FanControlCluster.h>
+#include <data_model_provider/esp_matter_data_model_provider.h>
 #include <app/server/Server.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <setup_payload/OnboardingCodesUtil.h>
@@ -184,8 +186,20 @@ void report_fan_state(intptr_t)
     const uint8_t percent = fan_percent();
     const uint8_t rock = s_fan.rotation_enabled() ? kRockLeftRight : 0;
 
-    report_fan_attribute(FanControl::Attributes::PercentCurrent::Id, esp_matter_uint8(percent));
-    report_fan_attribute(FanControl::Attributes::SpeedCurrent::Id, esp_matter_uint8(speed));
+    auto *server = data_model::provider::get_instance().registry().Get(
+        chip::app::ConcreteClusterPath(s_fan_endpoint_id, FanControl::Id));
+    if (server == nullptr) {
+        ESP_LOGE(kTag, "Fan Control server is unavailable");
+        s_fan_report_pending.store(false);
+        return;
+    }
+
+    // Network reads use the cluster's state, not the generic attribute value store.
+    auto *fan_cluster = static_cast<FanControlCluster *>(server);
+    fan_cluster->SetPercentCurrent(percent);
+    fan_cluster->SetSpeedCurrent(speed);
+    ESP_LOGI(kTag, "Matter current state: percent=%u speed=%u",
+             fan_cluster->GetPercentCurrent(), fan_cluster->GetSpeedCurrent());
     report_fan_attribute(FanControl::Attributes::RockSetting::Id, esp_matter_bitmap8(rock));
     update_fan_display();
     s_fan_report_pending.store(false);
