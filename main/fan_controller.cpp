@@ -67,6 +67,9 @@ esp_err_t FanController::set_speed(Speed speed)
     if (speed > Speed::high) {
         return ESP_ERR_INVALID_ARG;
     }
+    if (speed == Speed::off) {
+        rotation_enabled_ = false;
+    }
     if (speed == speed_) {
         return apply_rotation();
     }
@@ -115,6 +118,9 @@ esp_err_t FanController::set_percent(uint8_t percent)
 esp_err_t FanController::set_rotation(bool enabled)
 {
     if (!initialized_) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (enabled && speed_ == Speed::off) {
         return ESP_ERR_INVALID_STATE;
     }
 

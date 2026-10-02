@@ -1,4 +1,5 @@
 #include <atomic>
+#include <cinttypes>
 #include <cstdint>
 #include <cstdlib>
 
@@ -152,12 +153,44 @@ void refresh_fabric_state() {}
 void initialize_display_status() {}
 #endif
 
-esp_err_t update_fan_result(esp_err_t err)
+uint8_t fan_percent()
 {
-    if (err == ESP_OK) {
-        update_fan_display();
+    switch (s_fan.speed()) {
+    case FanController::Speed::off:
+        return 0;
+    case FanController::Speed::low:
+        return 33;
+    case FanController::Speed::medium:
+        return 66;
+    case FanController::Speed::high:
+        return 100;
     }
-    return err;
+    return 0;
+}
+
+void report_fan_attribute(uint32_t attribute_id, esp_matter_attr_val_t value)
+{
+    esp_err_t err = attribute::report(s_fan_endpoint_id, FanControl::Id, attribute_id, &value);
+    if (err != ESP_OK) {
+        ESP_LOGW(kTag, "Failed to report fan attribute 0x%08" PRIx32 ": %s", attribute_id,
+                 esp_err_to_name(err));
+    }
+}
+
+void report_fan_state()
+{
+    const uint8_t speed = static_cast<uint8_t>(s_fan.speed());
+    const uint8_t percent = fan_percent();
+    const uint8_t rock = s_fan.rotation_enabled() ? kRockLeftRight : 0;
+
+    report_fan_attribute(FanControl::Attributes::FanMode::Id, esp_matter_enum8(speed));
+    report_fan_attribute(FanControl::Attributes::PercentSetting::Id,
+                         esp_matter_nullable_uint8(nullable<uint8_t>(percent)));
+    report_fan_attribute(FanControl::Attributes::PercentCurrent::Id, esp_matter_uint8(percent));
+    report_fan_attribute(FanControl::Attributes::SpeedSetting::Id,
+                         esp_matter_nullable_uint8(nullable<uint8_t>(speed)));
+    report_fan_attribute(FanControl::Attributes::SpeedCurrent::Id, esp_matter_uint8(speed));
+    report_fan_attribute(FanControl::Attributes::RockSetting::Id, esp_matter_bitmap8(rock));
 }
 
 void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
@@ -232,7 +265,15 @@ esp_err_t handle_fan_mode(uint8_t mode)
 esp_err_t attribute_update_cb(attribute::callback_type_t type, uint16_t endpoint_id, uint32_t cluster_id,
                               uint32_t attribute_id, esp_matter_attr_val_t *value, void *priv_data)
 {
-    if (type != attribute::PRE_UPDATE || endpoint_id != s_fan_endpoint_id || cluster_id != FanControl::Id) {
+    if (endpoint_id != s_fan_endpoint_id || cluster_id != FanControl::Id) {
+        return ESP_OK;
+    }
+    if (type == attribute::POST_UPDATE) {
+        report_fan_state();
+        update_fan_display();
+        return ESP_OK;
+    }
+    if (type != attribute::PRE_UPDATE) {
         return ESP_OK;
     }
     if (ota_update_in_progress()) {
@@ -240,16 +281,16 @@ esp_err_t attribute_update_cb(attribute::callback_type_t type, uint16_t endpoint
     }
 
     if (attribute_id == FanControl::Attributes::FanMode::Id) {
-        return update_fan_result(handle_fan_mode(value->val.u8));
+        return handle_fan_mode(value->val.u8);
     }
     if (attribute_id == FanControl::Attributes::PercentSetting::Id) {
-        return update_fan_result(s_fan.set_percent(value->val.u8));
+        return s_fan.set_percent(value->val.u8);
     }
     if (attribute_id == FanControl::Attributes::SpeedSetting::Id) {
-        return update_fan_result(handle_fan_mode(value->val.u8));
+        return handle_fan_mode(value->val.u8);
     }
     if (attribute_id == FanControl::Attributes::RockSetting::Id) {
-        return update_fan_result(s_fan.set_rotation((value->val.u8 & kRockLeftRight) != 0));
+        return s_fan.set_rotation((value->val.u8 & kRockLeftRight) != 0);
     }
 
     return ESP_OK;
@@ -299,6 +340,7 @@ void restore_fan_state()
     if (rock_attribute != nullptr && attribute::get_val(rock_attribute, &value) == ESP_OK) {
         s_fan.set_rotation((value.val.u8 & kRockLeftRight) != 0);
     }
+    report_fan_state();
     update_fan_display();
 }
 } // namespace
