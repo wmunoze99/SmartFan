@@ -31,6 +31,7 @@ constexpr uint8_t kRockLeftRight = 0x01;
 uint16_t s_fan_endpoint_id = 0;
 std::atomic_bool s_commissioned = false;
 std::atomic_bool s_commissioning_window_open = false;
+std::atomic_bool s_fan_report_pending = false;
 
 #if CONFIG_FAN_RELAY_ACTIVE_HIGH
 constexpr bool kRelayActiveHigh = true;
@@ -177,20 +178,31 @@ void report_fan_attribute(uint32_t attribute_id, esp_matter_attr_val_t value)
     }
 }
 
-void report_fan_state()
+void report_fan_state(intptr_t)
 {
     const uint8_t speed = static_cast<uint8_t>(s_fan.speed());
     const uint8_t percent = fan_percent();
     const uint8_t rock = s_fan.rotation_enabled() ? kRockLeftRight : 0;
 
-    report_fan_attribute(FanControl::Attributes::FanMode::Id, esp_matter_enum8(speed));
-    report_fan_attribute(FanControl::Attributes::PercentSetting::Id,
-                         esp_matter_nullable_uint8(nullable<uint8_t>(percent)));
     report_fan_attribute(FanControl::Attributes::PercentCurrent::Id, esp_matter_uint8(percent));
-    report_fan_attribute(FanControl::Attributes::SpeedSetting::Id,
-                         esp_matter_nullable_uint8(nullable<uint8_t>(speed)));
     report_fan_attribute(FanControl::Attributes::SpeedCurrent::Id, esp_matter_uint8(speed));
     report_fan_attribute(FanControl::Attributes::RockSetting::Id, esp_matter_bitmap8(rock));
+    update_fan_display();
+    s_fan_report_pending.store(false);
+}
+
+void schedule_fan_state_report()
+{
+    bool expected = false;
+    if (!s_fan_report_pending.compare_exchange_strong(expected, true)) {
+        return;
+    }
+
+    CHIP_ERROR err = chip::DeviceLayer::PlatformMgr().ScheduleWork(report_fan_state, 0);
+    if (err != CHIP_NO_ERROR) {
+        s_fan_report_pending.store(false);
+        ESP_LOGW(kTag, "Failed to schedule fan state report: %s", err.AsString());
+    }
 }
 
 void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
@@ -269,8 +281,7 @@ esp_err_t attribute_update_cb(attribute::callback_type_t type, uint16_t endpoint
         return ESP_OK;
     }
     if (type == attribute::POST_UPDATE) {
-        report_fan_state();
-        update_fan_display();
+        schedule_fan_state_report();
         return ESP_OK;
     }
     if (type != attribute::PRE_UPDATE) {
@@ -340,7 +351,7 @@ void restore_fan_state()
     if (rock_attribute != nullptr && attribute::get_val(rock_attribute, &value) == ESP_OK) {
         s_fan.set_rotation((value.val.u8 & kRockLeftRight) != 0);
     }
-    report_fan_state();
+    schedule_fan_state_report();
     update_fan_display();
 }
 } // namespace
