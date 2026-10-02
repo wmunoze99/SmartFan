@@ -53,6 +53,10 @@ FanController s_fan({
 });
 
 #if CONFIG_FAN_OTA_ENABLED
+static_assert(CONFIG_ESP_MATTER_MAX_DYNAMIC_ENDPOINT_COUNT >= 3,
+              "Root, fan, and OTA check require three Matter endpoints");
+uint16_t s_ota_endpoint_id = chip::kInvalidEndpointId;
+
 bool ota_ready(void *)
 {
     return s_commissioned.load() && s_fan.speed() == FanController::Speed::off;
@@ -66,6 +70,15 @@ OtaManager s_ota({
     .ready_callback = ota_ready,
     .callback_context = nullptr,
 });
+
+void reset_ota_check_switch(intptr_t)
+{
+    esp_matter_attr_val_t off = esp_matter_bool(false);
+    esp_err_t err = attribute::report(s_ota_endpoint_id, OnOff::Id, OnOff::Attributes::OnOff::Id, &off);
+    if (err != ESP_OK) {
+        ESP_LOGW(kTag, "Failed to reset OTA check switch: %s", esp_err_to_name(err));
+    }
+}
 
 void update_ota_network_status()
 {
@@ -291,6 +304,24 @@ esp_err_t handle_fan_mode(uint8_t mode)
 esp_err_t attribute_update_cb(attribute::callback_type_t type, uint16_t endpoint_id, uint32_t cluster_id,
                               uint32_t attribute_id, esp_matter_attr_val_t *value, void *priv_data)
 {
+#if CONFIG_FAN_OTA_ENABLED
+    if (endpoint_id == s_ota_endpoint_id && cluster_id == OnOff::Id &&
+        attribute_id == OnOff::Attributes::OnOff::Id) {
+        if (!value->val.b) {
+            return ESP_OK;
+        }
+        if (type == attribute::PRE_UPDATE) {
+            return s_ota.request_check();
+        }
+        if (type == attribute::POST_UPDATE) {
+            CHIP_ERROR err = chip::DeviceLayer::PlatformMgr().ScheduleWork(reset_ota_check_switch, 0);
+            if (err != CHIP_NO_ERROR) {
+                ESP_LOGW(kTag, "Failed to schedule OTA switch reset: %s", err.AsString());
+            }
+        }
+        return ESP_OK;
+    }
+#endif
     if (endpoint_id != s_fan_endpoint_id || cluster_id != FanControl::Id) {
         return ESP_OK;
     }
@@ -404,6 +435,19 @@ extern "C" void app_main()
     s_fan_endpoint_id = endpoint::get_id(fan_endpoint);
     ESP_ERROR_CHECK(add_fan_features(fan_endpoint));
     ESP_LOGI(kTag, "Fan endpoint created: %u", s_fan_endpoint_id);
+
+#if CONFIG_FAN_OTA_ENABLED
+    endpoint::on_off_plug_in_unit::config_t ota_config;
+    ota_config.on_off.on_off = false;
+    endpoint_t *ota_endpoint =
+        endpoint::on_off_plug_in_unit::create(node, &ota_config, ENDPOINT_FLAG_NONE, &s_ota);
+    if (ota_endpoint == nullptr) {
+        ESP_LOGE(kTag, "Failed to create OTA check endpoint");
+        abort();
+    }
+    s_ota_endpoint_id = endpoint::get_id(ota_endpoint);
+    ESP_LOGI(kTag, "OTA check endpoint created: %u", s_ota_endpoint_id);
+#endif
 
     ESP_ERROR_CHECK(esp_matter::start(app_event_cb));
     restore_fan_state();

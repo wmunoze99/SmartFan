@@ -62,6 +62,20 @@ void OtaManager::set_network_connected(bool connected)
     }
 }
 
+esp_err_t OtaManager::request_check()
+{
+    if (task_ == nullptr || events_ == nullptr || check_in_progress_.load() ||
+        update_in_progress_.load() || !ready_to_update() ||
+        (xEventGroupGetBits(events_) & kNetworkConnected) == 0) {
+        ESP_LOGW(kTag, "OTA check unavailable: fan must be off, commissioned, online, and not checking");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    xTaskNotifyGive(task_);
+    ESP_LOGI(kTag, "Manual OTA check requested");
+    return ESP_OK;
+}
+
 bool OtaManager::update_in_progress() const
 {
     return update_in_progress_.load();
@@ -91,15 +105,18 @@ void OtaManager::task()
     uint32_t delay_seconds = config_.startup_delay_seconds;
 
     while (true) {
-        vTaskDelay(seconds_to_ticks(delay_seconds));
+        ulTaskNotifyTake(pdTRUE, seconds_to_ticks(delay_seconds));
         xEventGroupWaitBits(events_, kNetworkConnected, pdFALSE, pdTRUE, portMAX_DELAY);
+        ulTaskNotifyTake(pdTRUE, 0);
 
         if (!ready_to_update()) {
             delay_seconds = config_.retry_interval_seconds;
             continue;
         }
 
+        check_in_progress_.store(true);
         esp_err_t err = check_for_update();
+        check_in_progress_.store(false);
         if (err != ESP_OK) {
             ESP_LOGW(kTag, "OTA check failed: %s", esp_err_to_name(err));
             delay_seconds = config_.retry_interval_seconds;

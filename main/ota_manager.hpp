@@ -24,6 +24,7 @@ public:
     explicit OtaManager(Config config);
 
     esp_err_t start();
+    esp_err_t request_check();
     void set_network_connected(bool connected);
     bool update_in_progress() const;
     esp_err_t confirm_running_image();
@@ -50,4 +51,5 @@ private:
     EventGroupHandle_t events_ = nullptr;
     TaskHandle_t task_ = nullptr;
     std::atomic_bool update_in_progress_ = false;
+    std::atomic_bool check_in_progress_ = false;
 };

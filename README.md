@@ -24,7 +24,7 @@ Connect a 128×64 I²C SSD1306 display to `3V3` and `GND`. Its default address i
 
 Defaults assume active-high relay inputs. Verify the GPIO mapping and relay polarity before connecting the fan. Change them under `Smart fan hardware` with `idf.py menuconfig`.
 
-The firmware always disables all speed relays before enabling another one. Rotation is physically disabled while the fan is off, while its requested state is retained.
+The firmware always disables all speed relays before enabling another one. Turning the fan off also clears rotation; rotation cannot be enabled while the fan is off.
 
 ## Display
 
@@ -68,6 +68,28 @@ eim run "idf.py -p /dev/cu.usbmodemXXXX erase-flash flash" v5.5.5
 ## HTTPS OTA
 
 The firmware checks a GitHub Release URL after Wi-Fi connects. It installs only a newer semantic version and only while the device is commissioned and the fan is off. Matter data in NVS is preserved. ESP-IDF rollback restores the previous image if the updated firmware cannot complete startup.
+
+### Manual update check
+
+When HTTPS OTA is enabled, an additional Matter switch requests an immediate check. It resets to off after accepting the request. The fan must be off, commissioned, and connected to Wi-Fi. A newer release is installed automatically; this is not a check-only action.
+
+Home Assistant has no standard Matter button mapping for custom HTTP OTA checks. Rename the new switch to `switch.smart_fan_ota_check`, then optionally add a template button to `configuration.yaml` (merge it into an existing `template:` section):
+
+```yaml
+template:
+  - button:
+      - name: "Smart Fan Check for Updates"
+        unique_id: smart_fan_check_for_updates
+        icon: mdi:cloud-download
+        press:
+          - action: switch.turn_on
+            target:
+              entity_id: switch.smart_fan_ota_check
+```
+
+Use your actual switch entity ID if it differs. Reload template entities to expose the `button` entity, then add it to the dashboard. Results are logged by the firmware; the button does not expose update availability or progress.
+
+The root, fan, and OTA switch require `CONFIG_ESP_MATTER_MAX_DYNAMIC_ENDPOINT_COUNT=3`. For an existing local build, update this setting in `idf.py menuconfig` too; changing `sdkconfig.defaults` alone does not override `sdkconfig`. Home Assistant may need an integration reload to discover the added endpoint; do not factory-reset the device for this.
 
 Configure the URL under `Smart fan OTA` with `idf.py menuconfig`:
 
