@@ -2,8 +2,11 @@ name: Release firmware
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*.*.*"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -12,6 +15,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container: espressif/idf:v5.5.5
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
 
     steps:
       - uses: actions/checkout@v4
@@ -29,23 +34,27 @@ jobs:
       - name: Cache compiler objects
         uses: actions/cache@v4
         with:
-          path: ~/.cache/ccache
+          path: .ccache
           key: ${{ runner.os }}-idf-v5.5.5-esp32c6-ccache-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-idf-v5.5.5-esp32c6-ccache-
 
-      - name: Configure release
+      - name: Configure build
         shell: bash
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Tag must use vMAJOR.MINOR.PATCH" >&2
-            exit 1
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Tag must use vMAJOR.MINOR.PATCH" >&2
+              exit 1
+            fi
+            echo "FIRMWARE_VERSION=${version}" >> "$GITHUB_ENV"
+          else
+            echo "FIRMWARE_VERSION=0.1.0-dev" >> "$GITHUB_ENV"
           fi
 
           ota_url="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/smart_fan.bin"
           sed -i "s|^CONFIG_FAN_OTA_RELEASE_URL=.*|CONFIG_FAN_OTA_RELEASE_URL=\"${ota_url}\"|" sdkconfig.defaults
-          echo "FIRMWARE_VERSION=${version}" >> "$GITHUB_ENV"
 
       - name: Build
         shell: bash
@@ -54,6 +63,7 @@ jobs:
           idf.py -DCCACHE_ENABLE=1 reconfigure build
 
       - name: Prepare artifacts
+        if: github.ref_type == 'tag'
         shell: bash
         run: |
           mkdir -p dist
@@ -62,6 +72,7 @@ jobs:
           sha256sum dist/smart_fan.bin > dist/smart_fan.sha256
 
       - name: Publish release
+        if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true

@@ -57,7 +57,7 @@ bool ota_ready(void *)
 OtaManager s_ota({
     .url = CONFIG_FAN_OTA_RELEASE_URL,
     .startup_delay_seconds = CONFIG_FAN_OTA_STARTUP_DELAY_SECONDS,
-    .check_interval_seconds = CONFIG_FAN_OTA_CHECK_INTERVAL_HOURS * 60U * 60U,
+    .check_interval_seconds = CONFIG_FAN_OTA_CHECK_INTERVAL_MINUTES * 60U,
     .retry_interval_seconds = CONFIG_FAN_OTA_RETRY_INTERVAL_MINUTES * 60U,
     .ready_callback = ota_ready,
     .callback_context = nullptr,

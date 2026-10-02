@@ -80,11 +80,11 @@ menu "Smart fan OTA"
         range 10 3600
         default 60
 
-    config FAN_OTA_CHECK_INTERVAL_HOURS
-        int "Successful check interval (hours)"
+    config FAN_OTA_CHECK_INTERVAL_MINUTES
+        int "Successful check interval (minutes)"
         depends on FAN_OTA_ENABLED
-        range 1 168
-        default 24
+        range 1 10080
+        default 1
 
     config FAN_OTA_RETRY_INTERVAL_MINUTES
         int "Retry interval (minutes)"
