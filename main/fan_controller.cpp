@@ -55,7 +55,8 @@ esp_err_t FanController::init()
     ESP_RETURN_ON_ERROR(disable_speed_relays(), kTag, "Failed to disable speed relays");
     ESP_RETURN_ON_ERROR(set_output(config_.rotation_gpio, false), kTag, "Failed to disable rotation relay");
 
-    ESP_LOGI(kTag, "Relays initialized in safe state");
+    ESP_LOGI(kTag, "Relays initialized off: active-%s, inactive GPIO level=%d",
+             config_.active_high ? "high" : "low", inactive_level);
     return ESP_OK;
 }
 

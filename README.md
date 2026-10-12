@@ -22,7 +22,9 @@ Matter-over-Wi-Fi firmware for a Seeed Studio XIAO ESP32-C6 controlling three mu
 
 Connect a 128×64 I²C SSD1306 display to `3V3` and `GND`. Its default address is `0x3C`; the pins and address are configurable under `Smart fan display` with `idf.py menuconfig`.
 
-Defaults assume active-high relay inputs. Verify the GPIO mapping and relay polarity before connecting the fan. Change them under `Smart fan hardware` with `idf.py menuconfig`.
+Defaults use active-low inputs for the tested G3MB-202P relay module: GPIO Low enables a channel; GPIO High disables it. This applies to all three speed channels and rotation. Verify the module's input polarity and 3.3 V logic compatibility before connecting the fan; the SSR model alone does not determine the module's trigger polarity. Change polarity under `Smart fan hardware` with `idf.py menuconfig`.
+
+For an existing build, disable `Relay inputs are active-high` in `menuconfig`; `sdkconfig.defaults` does not override an existing `sdkconfig`. Test with the fan's mains supply disconnected first. Firmware sets the inactive levels before enabling GPIO outputs, but it cannot guarantee those levels during reset or before startup. Use appropriate external biasing or a compatible interface circuit to keep the module inputs inactive then; never apply 5 V to an ESP32 GPIO.
 
 The firmware always disables all speed relays before enabling another one. Turning the fan off also clears rotation; rotation cannot be enabled while the fan is off.
 

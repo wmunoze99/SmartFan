@@ -22,7 +22,7 @@ menu "Smart fan hardware"
 
     config FAN_RELAY_ACTIVE_HIGH
         bool "Relay inputs are active-high"
-        default y
+        default n
         help
             Disable this when a low GPIO level energizes the relay.
 
