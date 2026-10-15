@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <string>
 
 #include <esp_err.h>
 #include <freertos/FreeRTOS.h>
@@ -48,6 +49,7 @@ private:
     bool ready_to_update() const;
 
     Config config_;
+    std::string release_url_;
     EventGroupHandle_t events_ = nullptr;
     TaskHandle_t task_ = nullptr;
     std::atomic_bool update_in_progress_ = false;

@@ -1,4 +1,5 @@
 #include "ota_manager.hpp"
+#include "firmware_variant.hpp"
 
 #include <climits>
 #include <cstdlib>
@@ -35,6 +36,7 @@ esp_err_t OtaManager::start()
         return ESP_ERR_INVALID_STATE;
     }
 
+    release_url_ = firmware::ota_url(config_.url);
     events_ = xEventGroupCreate();
     if (events_ == nullptr) {
         return ESP_ERR_NO_MEM;
@@ -46,7 +48,7 @@ esp_err_t OtaManager::start()
         return ESP_ERR_NO_MEM;
     }
 
-    ESP_LOGI(kTag, "OTA enabled for %s", config_.url);
+    ESP_LOGI(kTag, "OTA variant %s enabled for %s", firmware::kDisplayVariant, release_url_.c_str());
     return ESP_OK;
 }
 
@@ -129,7 +131,7 @@ void OtaManager::task()
 esp_err_t OtaManager::check_for_update()
 {
     esp_http_client_config_t http_config = {};
-    http_config.url = config_.url;
+    http_config.url = release_url_.c_str();
     http_config.user_agent = "smart-fan-ota";
     http_config.crt_bundle_attach = esp_crt_bundle_attach;
     http_config.timeout_ms = 15000;

@@ -108,7 +108,9 @@ menu "Smart fan OTA"
         depends on FAN_OTA_ENABLED
         default ""
         help
-            Public GitHub release URL ending in /releases/latest/download/smart_fan.bin.
+            Firmware URL with {display} replaced by ssd1306 or sh1106 according
+            to the selected OLED controller. Legacy /smart_fan.bin URLs are
+            mapped to the corresponding variant filename automatically.
 
     config FAN_OTA_STARTUP_DELAY_SECONDS
         int "Initial check delay (seconds)"

@@ -49,7 +49,7 @@ SSD1306 is the default controller, commonly used by 0.96-inch OLEDs. For an SH11
 eim run "idf.py menuconfig" v5.5.5
 ```
 
-Under `Smart fan display` → `OLED controller`, select `SH1106`, save, then rebuild and flash. Select `SSD1306` when switching back to that controller. Selection is build-time, not automatic: both controllers can share the same I²C address. Physical size alone does not identify the controller. Both use the same 128×64 layout; the SH1106 backend handles its page addressing and two-column RAM offset.
+Under `Smart fan display` → `OLED controller`, select `SH1106`, save, then rebuild and flash. Alternatively, use the isolated controller profiles below. The controller is compiled into the firmware, not autodetected over I²C: both controllers can share the same address, and physical size alone does not identify them. Automatic OTA variant selection uses this compiled controller. Once installed, updates stay on that variant; swapping display controllers requires a wired flash of the other image. Both use the same 128×64 layout; the SH1106 backend handles its page addressing and two-column RAM offset.
 
 The OLED shows the Matter QR code while the factory-new device is open for commissioning. The QR payload is generated from the active Matter commissioning provider, so production factory data will automatically replace the development payload. If the commissioning window expires, the display shows `PAIRING CLOSED`; reboot the factory-new device to reopen it.
 
@@ -61,18 +61,30 @@ After commissioning, the display shows Wi-Fi connectivity, fan speed, and rotati
 - `espressif/esp_matter` v1.6.0
 - Target: `esp32c6`
 
-Build with EIM:
+Build either controller profile with EIM, starting with fresh build directories for reproducible defaults. These commands use separate generated configs and leave the existing root `sdkconfig` untouched; defaults do not override an existing generated config. To repeat a clean profile build, remove only its generated build directory first.
 
 ```sh
-eim run "idf.py set-target esp32c6" v5.5.5
-eim run "idf.py build" v5.5.5
+eim run "FIRMWARE_VERSION=0.2.2 idf.py -B build/ssd1306 -DSDKCONFIG=build/ssd1306/sdkconfig -DSDKCONFIG_DEFAULTS='sdkconfig.defaults;config/sdkconfig.ssd1306' reconfigure build" v5.5.5
+eim run "FIRMWARE_VERSION=0.2.2 idf.py -B build/sh1106 -DSDKCONFIG=build/sh1106/sdkconfig -DSDKCONFIG_DEFAULTS='sdkconfig.defaults;config/sdkconfig.sh1106' reconfigure build" v5.5.5
 ```
 
-Flash and monitor, replacing the port if needed:
+The target comes from `sdkconfig.defaults`. Local outputs are still named `smart_fan.bin` (and `smart_fan.elf`) within each build directory; release assets are renamed by controller. `0.2.2` is an example version: an OTA release must be strictly newer than the installed firmware.
+
+Flash and monitor the matching build, replacing the port if needed (use `-B build/sh1106` for SH1106):
 
 ```sh
-eim run "idf.py -p /dev/cu.usbmodemXXXX flash monitor" v5.5.5
+eim run "FIRMWARE_VERSION=0.2.2 idf.py -B build/ssd1306 -p /dev/cu.usbmodemXXXX flash monitor" v5.5.5
 ```
+
+### Native helper tests
+
+With Python 3 and a native C++17 compiler named `c++`, run:
+
+```sh
+python3 -m unittest discover -s tests -v
+```
+
+These standard-library tests compile the real variant helper for both controllers with temporary `sdkconfig.h` files under `build/`; no ESP-IDF build or Python dependencies are required.
 
 ## Home Assistant commissioning
 
@@ -117,22 +129,29 @@ The root, fan, and OTA switch require `CONFIG_ESP_MATTER_MAX_DYNAMIC_ENDPOINT_CO
 Configure the URL under `Smart fan OTA` with `idf.py menuconfig`:
 
 ```text
-https://github.com/OWNER/REPOSITORY/releases/latest/download/smart_fan.bin
+https://github.com/OWNER/REPOSITORY/releases/latest/download/smart_fan-{display}.bin
 ```
 
-After creating the repository, perform one wired full flash with this URL configured. The OTA partition layout changed and cannot update itself through an application-only OTA. A normal wired flash preserves Matter data in NVS:
+The current helper replaces every literal `{display}` with the compiled `ssd1306` or `sh1106` variant. It also converts a configured URL ending exactly in `/smart_fan.bin` to `/smart_fan-{display}.bin` before substitution; other literal URLs remain unchanged.
 
-```sh
-eim run "idf.py -p /dev/cu.usbmodemXXXX flash" v5.5.5
-```
+**Legacy OTA clients migrate automatically to SH1106.** Releases also publish `smart_fan.bin` as a byte-for-byte alias of `smart_fan-sh1106.bin`. Existing firmware requesting that old filename can install a newer release without a wired flash. After reboot, the installed SH1106 image requests `smart_fan-sh1106.bin` for future updates.
+
+This migration intentionally assumes SH1106 hardware; it is not display autodetection. Any legacy client still using `smart_fan.bin` receives SH1106 firmware, even if its hardware is SSD1306. Such SSD1306 devices need a one-time wired flash of the SSD1306 variant instead. Updates still require a strictly newer version and the fan to be off.
+
+A wired full flash is also required when migrating from the old OTA partition layout; application-only OTA cannot change that layout. A normal wired flash preserves Matter data in NVS; do not erase flash for this migration.
 
 Direct device downloads require a public repository. For private source code, publish firmware in a separate public release repository or serve it through an authenticated NAS proxy; never embed a GitHub token in firmware.
 
 Release tags must use `vMAJOR.MINOR.PATCH`, for example:
 
 ```sh
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.2.2
+git push origin v0.2.2
 ```
 
-`.github/workflows/release.yml` injects the tag as the firmware version, builds with ESP-IDF v5.5.5, and publishes `smart_fan.bin`. The workflow also injects its own public release URL, so release builds do not need the owner or repository name hard-coded.
+`.github/workflows/release.yml` injects the tag as the firmware version and builds both controller profiles with ESP-IDF v5.5.5. Only after both matrix builds pass does it publish:
+
+- `smart_fan-ssd1306.bin`, `smart_fan-ssd1306.elf`, `smart_fan-ssd1306.sha256`
+- `smart_fan-sh1106.bin`, `smart_fan-sh1106.elf`, `smart_fan-sh1106.sha256`
+
+Each `.sha256` checksums its matching `.bin`. For legacy OTA clients, `smart_fan.bin` and `smart_fan.elf` alias the SH1106 build; `smart_fan.sha256` checksums the legacy binary filename. These aliases are created only after both variants build successfully—there are still just two distinct firmware variants. The workflow injects its own public release URL with `{display}`, so release builds need no hard-coded owner or repository. Use a new tag/version strictly greater than the firmware installed on devices that should update.
