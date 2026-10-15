@@ -24,10 +24,16 @@ public:
         offline,
     };
 
+    enum class Controller : uint8_t {
+        ssd1306,
+        sh1106,
+    };
+
     struct Config {
         gpio_num_t sda_gpio;
         gpio_num_t scl_gpio;
         uint8_t i2c_address;
+        Controller controller = Controller::ssd1306;
     };
 
     explicit StatusDisplay(Config config);
@@ -57,6 +63,7 @@ private:
     void task();
     void publish();
     void cleanup();
+    esp_err_t init_sh1106();
     void render(const State &state);
     void render_dashboard(const State &state);
     void render_qr(const char *payload);

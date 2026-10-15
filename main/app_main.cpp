@@ -112,6 +112,11 @@ StatusDisplay s_display({
     .sda_gpio = static_cast<gpio_num_t>(CONFIG_FAN_DISPLAY_SDA_GPIO),
     .scl_gpio = static_cast<gpio_num_t>(CONFIG_FAN_DISPLAY_SCL_GPIO),
     .i2c_address = CONFIG_FAN_DISPLAY_I2C_ADDRESS,
+#if CONFIG_FAN_DISPLAY_CONTROLLER_SH1106
+    .controller = StatusDisplay::Controller::sh1106,
+#else
+    .controller = StatusDisplay::Controller::ssd1306,
+#endif
 });
 
 void update_fan_display()
