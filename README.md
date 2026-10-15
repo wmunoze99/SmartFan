@@ -20,7 +20,7 @@ Matter-over-Wi-Fi firmware for a Seeed Studio XIAO ESP32-C6 controlling three mu
 | OLED SDA | D5 | 23 |
 | OLED SCL | D4 | 22 |
 
-Connect a 128×64 I²C SSD1306 display to `3V3` and `GND`. Its default address is `0x3C`; the pins and address are configurable under `Smart fan display` with `idf.py menuconfig`.
+Connect a 128×64 I²C SSD1306 or SH1106 display to `3V3` and `GND`. Its default address is `0x3C`; the controller, pins, and address are configurable under `Smart fan display` with `idf.py menuconfig`.
 
 Defaults use active-low inputs for the tested G3MB-202P relay module: GPIO Low enables a channel; GPIO High disables it. This applies to all three speed channels and rotation. Verify the module's input polarity and 3.3 V logic compatibility before connecting the fan; the SSR model alone does not determine the module's trigger polarity. Change polarity under `Smart fan hardware` with `idf.py menuconfig`.
 
@@ -29,6 +29,14 @@ For an existing build, disable `Relay inputs are active-high` in `menuconfig`; `
 The firmware always disables all speed relays before enabling another one. Turning the fan off also clears rotation; rotation cannot be enabled while the fan is off.
 
 ## Display
+
+SSD1306 is the default controller, commonly used by 0.96-inch OLEDs. For an SH1106 display (commonly 1.3-inch), run:
+
+```sh
+eim run "idf.py menuconfig" v5.5.5
+```
+
+Under `Smart fan display` → `OLED controller`, select `SH1106`, save, then rebuild and flash. Select `SSD1306` when switching back to that controller. Selection is build-time, not automatic: both controllers can share the same I²C address. Physical size alone does not identify the controller. Both use the same 128×64 layout; the SH1106 backend handles its page addressing and two-column RAM offset.
 
 The OLED shows the Matter QR code while the factory-new device is open for commissioning. The QR payload is generated from the active Matter commissioning provider, so production factory data will automatically replace the development payload. If the commissioning window expires, the display shows `PAIRING CLOSED`; reboot the factory-new device to reopen it.
 

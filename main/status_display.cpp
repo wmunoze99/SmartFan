@@ -67,7 +67,7 @@ esp_err_t StatusDisplay::init()
     ESP_RETURN_ON_ERROR(i2c_new_master_bus(&bus_config, &i2c_bus_), kTag, "Failed to create I2C bus");
     esp_err_t err = i2c_master_probe(i2c_bus_, config_.i2c_address, 100);
     if (err != ESP_OK) {
-        ESP_LOGE(kTag, "SSD1306 not found at 0x%02x", config_.i2c_address);
+        ESP_LOGE(kTag, "OLED not found at 0x%02x", config_.i2c_address);
         cleanup();
         return err;
     }
@@ -86,25 +86,29 @@ esp_err_t StatusDisplay::init()
         return err;
     }
 
-    esp_lcd_panel_ssd1306_config_t ssd1306_config = {};
-    ssd1306_config.height = kHeight;
+    if (config_.controller == Controller::sh1106) {
+        err = init_sh1106();
+    } else {
+        esp_lcd_panel_ssd1306_config_t ssd1306_config = {};
+        ssd1306_config.height = kHeight;
 
-    esp_lcd_panel_dev_config_t panel_config = {};
-    panel_config.reset_gpio_num = -1;
-    panel_config.bits_per_pixel = 1;
-    panel_config.vendor_config = &ssd1306_config;
-    err = esp_lcd_new_panel_ssd1306(panel_io_, &panel_config, &panel_);
-    if (err == ESP_OK) {
-        err = esp_lcd_panel_reset(panel_);
-    }
-    if (err == ESP_OK) {
-        err = esp_lcd_panel_init(panel_);
-    }
-    if (err == ESP_OK) {
-        err = esp_lcd_panel_disp_on_off(panel_, true);
+        esp_lcd_panel_dev_config_t panel_config = {};
+        panel_config.reset_gpio_num = -1;
+        panel_config.bits_per_pixel = 1;
+        panel_config.vendor_config = &ssd1306_config;
+        err = esp_lcd_new_panel_ssd1306(panel_io_, &panel_config, &panel_);
+        if (err == ESP_OK) {
+            err = esp_lcd_panel_reset(panel_);
+        }
+        if (err == ESP_OK) {
+            err = esp_lcd_panel_init(panel_);
+        }
+        if (err == ESP_OK) {
+            err = esp_lcd_panel_disp_on_off(panel_, true);
+        }
     }
     if (err != ESP_OK) {
-        ESP_LOGE(kTag, "Failed to initialize SSD1306");
+        ESP_LOGE(kTag, "Failed to initialize OLED");
         cleanup();
         return err;
     }
@@ -122,8 +126,33 @@ esp_err_t StatusDisplay::init()
 
     ready_ = true;
     publish();
-    ESP_LOGI(kTag, "SSD1306 initialized on SDA GPIO%d, SCL GPIO%d", config_.sda_gpio, config_.scl_gpio);
+    ESP_LOGI(kTag, "%s initialized on SDA GPIO%d, SCL GPIO%d",
+             config_.controller == Controller::sh1106 ? "SH1106" : "SSD1306", config_.sda_gpio, config_.scl_gpio);
     return ESP_OK;
+}
+
+esp_err_t StatusDisplay::init_sh1106()
+{
+    // SH1106 uses its own DC-DC enable command, not the SSD1306 charge-pump command.
+    constexpr uint8_t commands[] = {
+        0xae,             // Display off
+        0xd5, 0x80,       // Clock divider
+        0xa8, 0x3f,       // 64-row multiplex
+        0xd3, 0x00,       // No display offset
+        0x40,             // Start line 0
+        0xad, 0x8b,       // Enable internal DC-DC converter
+        0xa1, 0xc8,       // Segment remap and COM scan direction
+        0xda, 0x12,       // COM pin configuration for 128x64
+        0x81, 0x80,       // Contrast
+        0xd9, 0x22,       // Precharge period
+        0xdb, 0x35,       // VCOM deselect level
+        0xa4, 0xa6,       // RAM contents, non-inverted
+    };
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(panel_io_, -1, commands, sizeof(commands)),
+                        kTag, "SH1106 initialization failed");
+    clear();
+    ESP_RETURN_ON_ERROR(flush(), kTag, "SH1106 initial clear failed");
+    return esp_lcd_panel_io_tx_param(panel_io_, 0xaf, nullptr, 0);
 }
 
 bool StatusDisplay::ready() const
@@ -370,5 +399,21 @@ void StatusDisplay::draw_char(int x, int y, char character, int scale)
 
 esp_err_t StatusDisplay::flush()
 {
+    if (config_.controller == Controller::sh1106) {
+        // The visible 128 columns start at column 2 of the SH1106's 132-column RAM.
+        constexpr uint8_t column_offset = 2;
+        for (int page = 0; page < kHeight / 8; ++page) {
+            const uint8_t address[] = {
+                static_cast<uint8_t>(0xb0 | page),
+                static_cast<uint8_t>(column_offset & 0x0f),
+                static_cast<uint8_t>(0x10 | (column_offset >> 4)),
+            };
+            ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(panel_io_, -1, address, sizeof(address)),
+                                kTag, "SH1106 page address failed");
+            ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_color(panel_io_, -1, buffer_.data() + page * kWidth, kWidth),
+                                kTag, "SH1106 page write failed");
+        }
+        return ESP_OK;
+    }
     return esp_lcd_panel_draw_bitmap(panel_, 0, 0, kWidth, kHeight, buffer_.data());
 }
