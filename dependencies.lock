@@ -1,4 +1,18 @@
 dependencies:
+  espressif/button:
+    component_hash: 7cb7e2944b5828f409af0c92f7fcc0e2d405de09c3325b7ee4a0eba5fb28dfdc
+    dependencies:
+    - name: espressif/cmake_utilities
+      registry_url: https://components.espressif.com
+      require: private
+      version: '*'
+    - name: idf
+      require: private
+      version: '>=4.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 4.2.2
   espressif/cjson:
     component_hash: e788323270d90738662d66fffa910bfe1fba019bba087f01557e70c40485b469
     dependencies:
@@ -9,6 +23,16 @@ dependencies:
       registry_url: https://components.espressif.com
       type: service
     version: 1.7.19~2
+  espressif/cmake_utilities:
+    component_hash: 05165f30922b422b4b90c08845e6d449329b97370fbd06309803d8cb539d79e3
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=4.1'
+    source:
+      registry_url: https://components.espressif.com
+      type: service
+    version: 1.1.1
   espressif/esp_delta_ota:
     component_hash: 147161b602ef51e9f6649eb6d90c4d4ac3c94228cb264fa0e68be7877180462d
     dependencies:
@@ -114,8 +138,9 @@ dependencies:
       type: idf
     version: 5.5.5
 direct_dependencies:
+- espressif/button
 - espressif/esp_matter
 - espressif/qrcode
-manifest_hash: 221a940df6c96906b6bd1bf9bbf1c3ad5bdc5a48eb5d370d0858c0f14acfb264
+manifest_hash: 7a494c4763137d1d6f625e0fed9dbecd75008e598f809528ac0f490b27d2f978
 target: esp32c6
 version: 2.0.0

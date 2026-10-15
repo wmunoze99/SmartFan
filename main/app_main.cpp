@@ -19,6 +19,7 @@
 #include <setup_payload/OnboardingCodesUtil.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
 
+#include "button_controls.hpp"
 #include "fan_controller.hpp"
 #include "ota_manager.hpp"
 #include "status_display.hpp"
@@ -231,6 +232,83 @@ void schedule_fan_state_report()
         ESP_LOGW(kTag, "Failed to schedule fan state report: %s", err.AsString());
     }
 }
+
+#if CONFIG_FAN_BUTTONS_ENABLED
+constexpr bool button_gpio_is_available(int gpio)
+{
+    if (gpio == CONFIG_FAN_SPEED_1_GPIO || gpio == CONFIG_FAN_SPEED_2_GPIO ||
+        gpio == CONFIG_FAN_SPEED_3_GPIO || gpio == CONFIG_FAN_ROTATION_GPIO) {
+        return false;
+    }
+#if CONFIG_FAN_DISPLAY_ENABLED
+    if (gpio == CONFIG_FAN_DISPLAY_SDA_GPIO || gpio == CONFIG_FAN_DISPLAY_SCL_GPIO) {
+        return false;
+    }
+#endif
+#if CONFIG_ESP_CONSOLE_UART_DEFAULT
+    if (gpio == 16 || gpio == 17) {
+        return false;
+    }
+#endif
+    return true;
+}
+
+static_assert(CONFIG_FAN_SPEED_BUTTON_GPIO != CONFIG_FAN_ROTATION_BUTTON_GPIO,
+              "Buttons must use different GPIOs");
+static_assert(button_gpio_is_available(CONFIG_FAN_SPEED_BUTTON_GPIO) &&
+                  button_gpio_is_available(CONFIG_FAN_ROTATION_BUTTON_GPIO),
+              "Buttons must not overlap relays, OLED, or the UART console");
+
+void handle_button_action(intptr_t action)
+{
+    if (ota_update_in_progress()) {
+        ESP_LOGW(kTag, "Button ignored during firmware installation");
+        return;
+    }
+
+    esp_matter_attr_val_t value = {};
+    uint32_t attribute_id;
+    switch (static_cast<ButtonControls::Action>(action)) {
+    case ButtonControls::Action::cycle_speed: {
+        const uint8_t next_speed = (static_cast<uint8_t>(s_fan.speed()) + 1U) % 4U;
+        attribute_id = FanControl::Attributes::FanMode::Id;
+        value = esp_matter_enum8(next_speed);
+        break;
+    }
+    case ButtonControls::Action::toggle_rotation:
+        if (s_fan.speed() == FanController::Speed::off) {
+            ESP_LOGI(kTag, "Rotation button ignored while fan is off");
+            return;
+        }
+        attribute_id = FanControl::Attributes::RockSetting::Id;
+        value = esp_matter_bitmap8(s_fan.rotation_enabled() ? 0 : kRockLeftRight);
+        break;
+    default:
+        return;
+    }
+
+    // Use the same write path as Home Assistant to keep settings and actual state in sync.
+    esp_err_t err = attribute::update(s_fan_endpoint_id, FanControl::Id, attribute_id, &value);
+    if (err != ESP_OK) {
+        ESP_LOGW(kTag, "Button action failed: %s", esp_err_to_name(err));
+    }
+}
+
+void button_pressed(ButtonControls::Action action)
+{
+    CHIP_ERROR err = chip::DeviceLayer::PlatformMgr().ScheduleWork(handle_button_action,
+                                                                 static_cast<intptr_t>(action));
+    if (err != CHIP_NO_ERROR) {
+        ESP_LOGW(kTag, "Failed to schedule button action: %s", err.AsString());
+    }
+}
+
+ButtonControls s_buttons({
+    .speed_gpio = static_cast<gpio_num_t>(CONFIG_FAN_SPEED_BUTTON_GPIO),
+    .rotation_gpio = static_cast<gpio_num_t>(CONFIG_FAN_ROTATION_BUTTON_GPIO),
+    .callback = button_pressed,
+});
+#endif
 
 void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
 {
@@ -457,6 +535,12 @@ extern "C" void app_main()
     ESP_ERROR_CHECK(s_ota.confirm_running_image());
     ESP_ERROR_CHECK(s_ota.start());
     update_ota_network_status();
+#endif
+
+#if CONFIG_FAN_BUTTONS_ENABLED
+    ESP_ERROR_CHECK(s_buttons.init());
+    ESP_LOGI(kTag, "Buttons enabled: speed GPIO%d, rotation GPIO%d (active-low)",
+             CONFIG_FAN_SPEED_BUTTON_GPIO, CONFIG_FAN_ROTATION_BUTTON_GPIO);
 #endif
 
 #if CONFIG_ENABLE_CHIP_SHELL

@@ -35,6 +35,26 @@ menu "Smart fan hardware"
 
 endmenu
 
+menu "Smart fan buttons"
+
+    config FAN_BUTTONS_ENABLED
+        bool "Enable physical buttons"
+        default y
+
+    config FAN_SPEED_BUTTON_GPIO
+        int "Speed button GPIO"
+        depends on FAN_BUTTONS_ENABLED
+        range 0 30
+        default 17
+
+    config FAN_ROTATION_BUTTON_GPIO
+        int "Rotation button GPIO"
+        depends on FAN_BUTTONS_ENABLED
+        range 0 30
+        default 20
+
+endmenu
+
 menu "Smart fan display"
 
     config FAN_DISPLAY_ENABLED

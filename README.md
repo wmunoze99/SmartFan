@@ -19,6 +19,8 @@ Matter-over-Wi-Fi firmware for a Seeed Studio XIAO ESP32-C6 controlling three mu
 | Rotation | D3 | 21 |
 | OLED SDA | D5 | 23 |
 | OLED SCL | D4 | 22 |
+| Speed button | D7 | 17 |
+| Rotation button | D9 | 20 |
 
 Connect a 128×64 I²C SSD1306 display to `3V3` and `GND`. Its default address is `0x3C`; the pins and address are configurable under `Smart fan display` with `idf.py menuconfig`.
 
@@ -27,6 +29,17 @@ Defaults use active-low inputs for the tested G3MB-202P relay module: GPIO Low e
 For an existing build, disable `Relay inputs are active-high` in `menuconfig`; `sdkconfig.defaults` does not override an existing `sdkconfig`. Test with the fan's mains supply disconnected first. Firmware sets the inactive levels before enabling GPIO outputs, but it cannot guarantee those levels during reset or before startup. Use appropriate external biasing or a compatible interface circuit to keep the module inputs inactive then; never apply 5 V to an ESP32 GPIO.
 
 The firmware always disables all speed relays before enabling another one. Turning the fan off also clears rotation; rotation cannot be enabled while the fan is off.
+
+## Physical buttons
+
+Connect a normally-open momentary button between **D7 (GPIO17) and GND** for speed, and another between **D9 (GPIO20) and GND** for rotation. Internal pullups are enabled; do not connect the buttons to 5 V. These are XIAO pin labels, not GPIO7/GPIO9.
+
+- Speed: each press cycles **Off → Low → Medium → High → Off**.
+- Rotation: each press toggles oscillation while the fan is running; ignored while off.
+- Holding a button does not repeat the action. Espressif's `button` component handles debouncing.
+- Buttons work without Wi-Fi or Home Assistant, and update Matter attributes and the OLED. Inputs are ignored during firmware installation.
+
+D7 is also UART RX. Logging uses the native USB Serial/JTAG console to free GPIO17; continue using the USB-C serial port for monitoring, not a UART adapter on D6/D7. Button GPIOs and enablement are configurable under `Smart fan buttons` in `menuconfig`.
 
 ## Display
 
