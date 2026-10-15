@@ -17,8 +17,8 @@ Matter-over-Wi-Fi firmware for a Seeed Studio XIAO ESP32-C6 controlling three mu
 | Speed 2 | D1 | 1 |
 | Speed 3 | D2 | 2 |
 | Rotation | D3 | 21 |
-| OLED SDA | D4 | 22 |
-| OLED SCL | D5 | 23 |
+| OLED SDA | D5 | 23 |
+| OLED SCL | D4 | 22 |
 
 Connect a 128×64 I²C SSD1306 display to `3V3` and `GND`. Its default address is `0x3C`; the pins and address are configurable under `Smart fan display` with `idf.py menuconfig`.
 

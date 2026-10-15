@@ -45,13 +45,13 @@ menu "Smart fan display"
         int "OLED SDA GPIO"
         depends on FAN_DISPLAY_ENABLED
         range 0 30
-        default 22
+        default 23
 
     config FAN_DISPLAY_SCL_GPIO
         int "OLED SCL GPIO"
         depends on FAN_DISPLAY_ENABLED
         range 0 30
-        default 23
+        default 22
 
     config FAN_DISPLAY_I2C_ADDRESS
         hex "OLED I2C address"
