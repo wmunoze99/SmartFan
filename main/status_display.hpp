@@ -34,6 +34,7 @@ public:
         gpio_num_t scl_gpio;
         uint8_t i2c_address;
         Controller controller = Controller::ssd1306;
+        uint32_t sleep_timeout_seconds = 30;
     };
 
     explicit StatusDisplay(Config config);
@@ -41,8 +42,9 @@ public:
     esp_err_t init();
     bool ready() const;
     void set_commissioning_payload(const char *payload);
-    void set_connection(Connection connection);
+    void set_connection(Connection connection, const char *network_name = nullptr);
     void set_fan_state(uint8_t speed, bool rotation);
+    void wake();
 
 private:
     static constexpr uint16_t kWidth = 128;
@@ -54,7 +56,9 @@ private:
         Connection connection = Connection::starting;
         uint8_t speed = 0;
         bool rotation = false;
+        uint32_t activity_sequence = 0;
         std::array<char, kMaxQrPayloadLength> qr_payload{};
+        std::array<char, 33> network_name{};
     };
 
     static void task_entry(void *context);
@@ -64,6 +68,7 @@ private:
     void publish();
     void cleanup();
     esp_err_t init_sh1106();
+    esp_err_t set_display_power(bool on);
     void render(const State &state);
     void render_dashboard(const State &state);
     void render_qr(const char *payload);
@@ -71,6 +76,7 @@ private:
     void clear();
     void set_pixel(int x, int y, bool on);
     void fill_rect(int x, int y, int width, int height, bool on);
+    void draw_bitmap(int x, int y, int width, int height, const uint32_t *rows);
     void draw_text(int x, int y, const char *text, int scale = 1);
     void draw_char(int x, int y, char character, int scale);
     esp_err_t flush();

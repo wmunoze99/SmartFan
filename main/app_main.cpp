@@ -6,6 +6,7 @@
 #include <esp_check.h>
 #include <esp_err.h>
 #include <esp_log.h>
+#include <esp_wifi.h>
 #include <nvs_flash.h>
 
 #include <esp_matter.h>
@@ -117,6 +118,7 @@ StatusDisplay s_display({
 #else
     .controller = StatusDisplay::Controller::ssd1306,
 #endif
+    .sleep_timeout_seconds = CONFIG_FAN_DISPLAY_SLEEP_TIMEOUT_SECONDS,
 });
 
 void update_fan_display()
@@ -132,7 +134,13 @@ void update_connection_display()
         return;
     }
     bool connected = chip::DeviceLayer::ConnectivityMgr().IsWiFiStationConnected();
-    s_display.set_connection(connected ? StatusDisplay::Connection::online : StatusDisplay::Connection::offline);
+    wifi_ap_record_t access_point = {};
+    const char *network_name = nullptr;
+    if (connected && esp_wifi_sta_get_ap_info(&access_point) == ESP_OK) {
+        network_name = reinterpret_cast<const char *>(access_point.ssid);
+    }
+    s_display.set_connection(connected ? StatusDisplay::Connection::online : StatusDisplay::Connection::offline,
+                             network_name);
 }
 
 void set_display_commissioning_payload()
@@ -270,6 +278,9 @@ void handle_button_action(intptr_t action)
         ESP_LOGW(kTag, "Button ignored during firmware installation");
         return;
     }
+#if CONFIG_FAN_DISPLAY_ENABLED
+    s_display.wake();
+#endif
 
     esp_matter_attr_val_t value = {};
     uint32_t attribute_id;

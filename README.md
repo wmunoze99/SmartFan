@@ -53,7 +53,11 @@ Under `Smart fan display` → `OLED controller`, select `SH1106`, save, then reb
 
 The OLED shows the Matter QR code while the factory-new device is open for commissioning. The QR payload is generated from the active Matter commissioning provider, so production factory data will automatically replace the development payload. If the commissioning window expires, the display shows `PAIRING CLOSED`; reboot the factory-new device to reopen it.
 
-After commissioning, the display shows Wi-Fi connectivity, fan speed, and rotation state. An offline commissioned device shows `WIFI OFFLINE` instead of the original QR because that QR cannot reopen a closed commissioning window.
+After commissioning, the 128×64 dashboard uses a fan-icon header, a large speed digit (or `OFF`), and a separate rotation panel with arrows and `ON`/`OFF`. The footer shows a Wi-Fi icon and the connected SSID with its original ASCII case; long names are shortened to 18 glyphs with `...`, and unsupported characters use `?`. Offline devices show a slashed Wi-Fi icon and `WIFI OFFLINE` rather than the original QR. Both controllers render the same pixels.
+
+The OLED turns off after **30 seconds of inactivity**, even while the fan runs. A speed/rotation change from Home Assistant or either physical button wakes it for another timeout period. Button presses still perform their normal action; pressing rotation while the fan is off only wakes the display. Unchanged reports and background Wi-Fi status updates do not extend the timeout or wake it at night; the latest status appears on the next wake. The pairing QR stays visible while commissioning is open.
+
+Configure `OLED inactivity timeout` under `Smart fan display` in `menuconfig`, or set `CONFIG_FAN_DISPLAY_SLEEP_TIMEOUT_SECONDS` in the build configuration. Use `0` to keep the screen on. Both SSD1306 and SH1106 use their display-off command; the fan, Matter connection, and buttons continue running.
 
 ## Toolchain
 

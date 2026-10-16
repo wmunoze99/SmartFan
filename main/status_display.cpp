@@ -37,13 +37,113 @@ constexpr Glyph kFont[] = {
     {'U', {0x3f, 0x40, 0x40, 0x40, 0x3f}}, {'V', {0x1f, 0x20, 0x40, 0x20, 0x1f}},
     {'W', {0x3f, 0x40, 0x38, 0x40, 0x3f}}, {'X', {0x63, 0x14, 0x08, 0x14, 0x63}},
     {'Y', {0x07, 0x08, 0x70, 0x08, 0x07}}, {'Z', {0x61, 0x51, 0x49, 0x45, 0x43}},
+    {'a', {0x20, 0x54, 0x54, 0x54, 0x78}}, {'b', {0x7f, 0x48, 0x44, 0x44, 0x38}},
+    {'c', {0x38, 0x44, 0x44, 0x44, 0x20}}, {'d', {0x38, 0x44, 0x44, 0x48, 0x7f}},
+    {'e', {0x38, 0x54, 0x54, 0x54, 0x18}}, {'f', {0x08, 0x7e, 0x09, 0x01, 0x02}},
+    {'g', {0x0c, 0x52, 0x52, 0x52, 0x3e}}, {'h', {0x7f, 0x08, 0x04, 0x04, 0x78}},
+    {'i', {0x00, 0x44, 0x7d, 0x40, 0x00}}, {'j', {0x20, 0x40, 0x44, 0x3d, 0x00}},
+    {'k', {0x7f, 0x10, 0x28, 0x44, 0x00}}, {'l', {0x00, 0x41, 0x7f, 0x40, 0x00}},
+    {'m', {0x7c, 0x04, 0x18, 0x04, 0x78}}, {'n', {0x7c, 0x08, 0x04, 0x04, 0x78}},
+    {'o', {0x38, 0x44, 0x44, 0x44, 0x38}}, {'p', {0x7c, 0x14, 0x14, 0x14, 0x08}},
+    {'q', {0x08, 0x14, 0x14, 0x18, 0x7c}}, {'r', {0x7c, 0x08, 0x04, 0x04, 0x08}},
+    {'s', {0x48, 0x54, 0x54, 0x54, 0x20}}, {'t', {0x04, 0x3f, 0x44, 0x40, 0x20}},
+    {'u', {0x3c, 0x40, 0x40, 0x20, 0x7c}}, {'v', {0x1c, 0x20, 0x40, 0x20, 0x1c}},
+    {'w', {0x3c, 0x40, 0x30, 0x40, 0x3c}}, {'x', {0x44, 0x28, 0x10, 0x28, 0x44}},
+    {'y', {0x0c, 0x50, 0x50, 0x50, 0x3c}}, {'z', {0x44, 0x64, 0x54, 0x4c, 0x44}},
+    {'!', {0x00, 0x00, 0x5f, 0x00, 0x00}}, {'"', {0x00, 0x07, 0x00, 0x07, 0x00}},
+    {'#', {0x14, 0x7f, 0x14, 0x7f, 0x14}}, {'$', {0x24, 0x2a, 0x7f, 0x2a, 0x12}},
+    {'%', {0x23, 0x13, 0x08, 0x64, 0x62}}, {'&', {0x36, 0x49, 0x55, 0x22, 0x50}},
+    {'\'', {0x00, 0x05, 0x03, 0x00, 0x00}}, {'(', {0x00, 0x1c, 0x22, 0x41, 0x00}},
+    {')', {0x00, 0x41, 0x22, 0x1c, 0x00}}, {'*', {0x14, 0x08, 0x3e, 0x08, 0x14}},
+    {'+', {0x08, 0x08, 0x3e, 0x08, 0x08}}, {',', {0x00, 0x50, 0x30, 0x00, 0x00}},
+    {'.', {0x00, 0x60, 0x60, 0x00, 0x00}}, {'/', {0x20, 0x10, 0x08, 0x04, 0x02}},
+    {';', {0x00, 0x56, 0x36, 0x00, 0x00}}, {'<', {0x08, 0x14, 0x22, 0x41, 0x00}},
+    {'=', {0x14, 0x14, 0x14, 0x14, 0x14}}, {'>', {0x00, 0x41, 0x22, 0x14, 0x08}},
+    {'@', {0x32, 0x49, 0x79, 0x41, 0x3e}}, {'[', {0x00, 0x7f, 0x41, 0x41, 0x00}},
+    {'\\', {0x02, 0x04, 0x08, 0x10, 0x20}}, {']', {0x00, 0x41, 0x41, 0x7f, 0x00}},
+    {'^', {0x04, 0x02, 0x01, 0x02, 0x04}}, {'_', {0x40, 0x40, 0x40, 0x40, 0x40}},
+    {'`', {0x00, 0x01, 0x02, 0x04, 0x00}}, {'{', {0x00, 0x08, 0x36, 0x41, 0x00}},
+    {'|', {0x00, 0x00, 0x7f, 0x00, 0x00}}, {'}', {0x00, 0x41, 0x36, 0x08, 0x00}},
+    {'~', {0x08, 0x04, 0x08, 0x10, 0x08}},
 };
+
+constexpr uint32_t kFanIcon[] = {
+    0b0000011100000,
+    0b0000111110000,
+    0b0000111110000,
+    0b0000011100000,
+    0b0110000000110,
+    0b1111011101111,
+    0b1111011101111,
+    0b1111011101111,
+    0b0110000000110,
+    0b0000011100000,
+    0b0000111110000,
+    0b0000111110000,
+    0b0000011100000,
+};
+
+constexpr uint32_t kRotationIcon[] = {
+    0b000000011111111110000000,
+    0b000001110000000011100000,
+    0b000011000000000000110010,
+    0b000110000000000000011110,
+    0b000110000000000000001110,
+    0b000000000000000000011110,
+    0b011110000000000000000000,
+    0b011100000000000000011000,
+    0b011110000000000000011000,
+    0b010011000000000000110000,
+    0b000001110000000011100000,
+    0b000000011111111110000000,
+};
+
+constexpr uint32_t kWifiIcon[] = {
+    0b001111111100,
+    0b110000000011,
+    0b000111111000,
+    0b001100001100,
+    0b000001100000,
+    0b000000000000,
+    0b000001100000,
+};
+
+std::array<char, 19> ssid_footer(const std::array<char, 33> &network_name)
+{
+    std::array<char, 32> glyphs{};
+    size_t count = 0;
+    size_t offset = 0;
+    while (offset < 32 && network_name[offset] != '\0') {
+        const auto lead = static_cast<uint8_t>(network_name[offset++]);
+        char character = '?';
+        if (lead >= 0x20 && lead <= 0x7e) {
+            character = static_cast<char>(lead);
+        } else if (lead >= 0xc2 && lead <= 0xf4) {
+            const size_t length = lead < 0xe0 ? 2 : (lead < 0xf0 ? 3 : 4);
+            // Consume a whole unsupported UTF-8 codepoint, including a bounded partial tail.
+            for (size_t byte = 1; byte < length && offset < 32; ++byte) {
+                const auto continuation = static_cast<uint8_t>(network_name[offset]);
+                if ((continuation & 0xc0) != 0x80) {
+                    break;
+                }
+                ++offset;
+            }
+        }
+        glyphs[count++] = character;
+    }
+
+    std::array<char, 19> result{};
+    if (count > result.size() - 1) {
+        std::copy_n(glyphs.begin(), 15, result.begin());
+        std::copy_n("...", 3, result.begin() + 15);
+    } else {
+        std::copy_n(glyphs.begin(), count, result.begin());
+    }
+    return result;
+}
 
 const std::array<uint8_t, 5> &glyph_for(char character)
 {
-    if (character >= 'a' && character <= 'z') {
-        character = static_cast<char>(character - ('a' - 'A'));
-    }
     for (const auto &glyph : kFont) {
         if (glyph.character == character) {
             return glyph.columns;
@@ -169,19 +269,28 @@ void StatusDisplay::set_commissioning_payload(const char *payload)
     std::strncpy(state_.qr_payload.data(), payload, state_.qr_payload.size() - 1);
     state_.qr_payload.back() = '\0';
     state_.connection = Connection::commissioning;
+    state_.network_name.fill('\0');
     xSemaphoreGive(state_mutex_);
     publish();
 }
 
-void StatusDisplay::set_connection(Connection connection)
+void StatusDisplay::set_connection(Connection connection, const char *network_name)
 {
     if (!ready_) {
         return;
     }
+    std::array<char, 33> name{};
+    if (connection == Connection::online && network_name != nullptr) {
+        std::strncpy(name.data(), network_name, name.size() - 1);
+    }
     xSemaphoreTake(state_mutex_, portMAX_DELAY);
+    const bool changed = state_.connection != connection || state_.network_name != name;
     state_.connection = connection;
+    state_.network_name = name;
     xSemaphoreGive(state_mutex_);
-    publish();
+    if (changed) {
+        publish();
+    }
 }
 
 void StatusDisplay::set_fan_state(uint8_t speed, bool rotation)
@@ -189,9 +298,27 @@ void StatusDisplay::set_fan_state(uint8_t speed, bool rotation)
     if (!ready_) {
         return;
     }
+    speed = std::min<uint8_t>(speed, 3);
     xSemaphoreTake(state_mutex_, portMAX_DELAY);
-    state_.speed = std::min<uint8_t>(speed, 3);
+    const bool changed = state_.speed != speed || state_.rotation != rotation;
+    state_.speed = speed;
     state_.rotation = rotation;
+    if (changed) {
+        ++state_.activity_sequence;
+    }
+    xSemaphoreGive(state_mutex_);
+    if (changed) {
+        publish();
+    }
+}
+
+void StatusDisplay::wake()
+{
+    if (!ready_) {
+        return;
+    }
+    xSemaphoreTake(state_mutex_, portMAX_DELAY);
+    ++state_.activity_sequence;
     xSemaphoreGive(state_mutex_);
     publish();
 }
@@ -206,12 +333,60 @@ void StatusDisplay::qr_callback(const uint8_t *qrcode, void *context)
     static_cast<StatusDisplay *>(context)->draw_qr(qrcode);
 }
 
+esp_err_t StatusDisplay::set_display_power(bool on)
+{
+    if (config_.controller == Controller::sh1106) {
+        return esp_lcd_panel_io_tx_param(panel_io_, on ? 0xaf : 0xae, nullptr, 0);
+    }
+    return esp_lcd_panel_disp_on_off(panel_, on);
+}
+
 void StatusDisplay::task()
 {
     State state;
+    bool display_on = true;
+    TickType_t last_activity = xTaskGetTickCount();
+    const TickType_t timeout = static_cast<TickType_t>(
+        static_cast<uint64_t>(config_.sleep_timeout_seconds) * configTICK_RATE_HZ);
+
     while (true) {
-        if (xQueueReceive(queue_, &state, portMAX_DELAY) == pdTRUE) {
+        const bool pairing = state.connection == Connection::commissioning && state.qr_payload[0] != '\0';
+        TickType_t wait = portMAX_DELAY;
+        if (display_on && timeout != 0 && !pairing) {
+            const TickType_t elapsed = xTaskGetTickCount() - last_activity;
+            wait = elapsed < timeout ? timeout - elapsed : 0;
+        }
+
+        State next;
+        if (xQueueReceive(queue_, &next, wait) == pdTRUE) {
+            const bool activity = next.activity_sequence != state.activity_sequence;
+            const bool next_pairing = next.connection == Connection::commissioning && next.qr_payload[0] != '\0';
+            if (activity || pairing != next_pairing) {
+                last_activity = xTaskGetTickCount();
+            }
+            state = next;
+            if (!display_on && !activity && !next_pairing) {
+                continue;
+            }
+
+            // Refresh RAM before waking so the old frame is never briefly shown.
             render(state);
+            if (!display_on) {
+                esp_err_t err = set_display_power(true);
+                if (err == ESP_OK) {
+                    display_on = true;
+                } else {
+                    ESP_LOGW(kTag, "OLED wake failed: %s", esp_err_to_name(err));
+                }
+            }
+        } else if (display_on && timeout != 0 && !pairing) {
+            esp_err_t err = set_display_power(false);
+            if (err == ESP_OK) {
+                display_on = false;
+            } else {
+                ESP_LOGW(kTag, "OLED sleep failed: %s", esp_err_to_name(err));
+                last_activity = xTaskGetTickCount();
+            }
         }
     }
 }
@@ -268,9 +443,34 @@ void StatusDisplay::render(const State &state)
 
 void StatusDisplay::render_dashboard(const State &state)
 {
-    draw_text(2, 0, "SMART FAN");
-    fill_rect(0, 9, kWidth, 1, true);
+    draw_bitmap(3, 1, 13, 13, kFanIcon);
+    draw_text(23, 1, "FAN", 2);
+    fill_rect(0, 16, kWidth, 1, true);
+    fill_rect(63, 19, 1, 35, true);
 
+    if (state.speed == 0) {
+        draw_text(15, 26, "OFF", 2);
+    } else {
+        const char speed[] = {static_cast<char>('0' + std::min<uint8_t>(state.speed, 3)), '\0'};
+        draw_text(22, 19, speed, 4);
+    }
+    draw_text(17, 48, "SPEED");
+
+    draw_bitmap(84, 19, 24, 12, kRotationIcon);
+    draw_text(state.rotation ? 85 : 79, 33, state.rotation ? "ON" : "OFF", 2);
+    draw_text(73, 48, "ROTATION");
+
+    fill_rect(0, 55, kWidth, 1, true);
+    draw_bitmap(2, 57, 12, 7, kWifiIcon);
+    if (state.connection != Connection::online) {
+        for (int row = 0; row < 7; ++row) {
+            const int x = 11 - row;
+            fill_rect(x - 1, 57 + row, 3, 1, false);
+            set_pixel(x, 57 + row, true);
+        }
+    }
+
+    const auto network_name = ssid_footer(state.network_name);
     const char *connection = "STARTING";
     switch (state.connection) {
     case Connection::commissioning:
@@ -283,7 +483,7 @@ void StatusDisplay::render_dashboard(const State &state)
         connection = "CONNECTING";
         break;
     case Connection::online:
-        connection = "WIFI ONLINE";
+        connection = network_name[0] != '\0' ? network_name.data() : "WIFI ONLINE";
         break;
     case Connection::offline:
         connection = "WIFI OFFLINE";
@@ -291,21 +491,7 @@ void StatusDisplay::render_dashboard(const State &state)
     case Connection::starting:
         break;
     }
-    draw_text(2, 13, connection);
-
-    draw_text(2, 28, "SPEED");
-    const char *speed = "OFF";
-    if (state.speed == 1) {
-        speed = "1";
-    } else if (state.speed == 2) {
-        speed = "2";
-    } else if (state.speed == 3) {
-        speed = "3";
-    }
-    draw_text(48, 24, speed, 2);
-
-    draw_text(2, 51, "ROTATION");
-    draw_text(72, 47, state.rotation ? "ON" : "OFF", 2);
+    draw_text(18, 57, connection);
 }
 
 void StatusDisplay::render_qr(const char *payload)
@@ -373,6 +559,17 @@ void StatusDisplay::fill_rect(int x, int y, int width, int height, bool on)
     for (int row = y; row < y + height; ++row) {
         for (int column = x; column < x + width; ++column) {
             set_pixel(column, row, on);
+        }
+    }
+}
+
+void StatusDisplay::draw_bitmap(int x, int y, int width, int height, const uint32_t *rows)
+{
+    for (int row = 0; row < height; ++row) {
+        for (int column = 0; column < width; ++column) {
+            if ((rows[row] & (1U << (width - column - 1))) != 0) {
+                set_pixel(x + column, y + row, true);
+            }
         }
     }
 }

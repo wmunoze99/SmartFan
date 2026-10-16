@@ -89,6 +89,16 @@ menu "Smart fan display"
         range 0 30
         default 22
 
+    config FAN_DISPLAY_SLEEP_TIMEOUT_SECONDS
+        int "OLED inactivity timeout (seconds, 0 = always on)"
+        depends on FAN_DISPLAY_ENABLED
+        range 0 3600
+        default 30
+        help
+            Wake on fan changes or physical button presses. The commissioning
+            QR stays visible while pairing is open. Background network events
+            do not wake a sleeping display.
+
     config FAN_DISPLAY_I2C_ADDRESS
         hex "OLED I2C address"
         depends on FAN_DISPLAY_ENABLED
