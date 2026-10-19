@@ -65,6 +65,7 @@ def _native_harness():
             ],
             capture_output=True,
             text=True,
+            check=False,
             timeout=60,
         )
         if result.returncode:
@@ -78,6 +79,7 @@ def _capture_frames(executable, controller, scenario):
     result = subprocess.run(
         [str(executable), controller, scenario],
         capture_output=True,
+        check=False,
         timeout=10,
     )
     if result.returncode or result.stderr:
@@ -139,6 +141,15 @@ def export_dashboard_preview(path, *, controller="ssd1306", offline=False):
     return _write_frame_png(frame, path)
 
 
+def export_ota_preview(path, *, controller="ssd1306"):
+    """Export the real 37% OTA framebuffer as a 6× PNG."""
+    if controller not in ("ssd1306", "sh1106"):
+        raise ValueError(f"Unknown display controller: {controller}")
+    with _native_harness() as executable:
+        frame = _capture_frames(executable, controller, "export_ota")
+    return _write_frame_png(frame, path)
+
+
 class StatusDisplayTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -153,6 +164,7 @@ class StatusDisplayTests(unittest.TestCase):
                     [str(self.executable), controller, scenario],
                     capture_output=True,
                     text=True,
+                    check=False,
                     timeout=10,
                 )
                 self.assertEqual(
@@ -221,6 +233,47 @@ class StatusDisplayTests(unittest.TestCase):
         self,
     ):
         self.run_scenario("ssid_status_and_cache")
+
+    def test_ota_wakes_sleeping_panel_and_all_active_stages_stay_awake_when_stalled(
+        self,
+    ):
+        self.run_scenario("ota_wake_keepawake")
+
+    def test_ota_progress_snapshot_percent_bar_bytes_and_stage_changes(self):
+        self.run_scenario("ota_render")
+
+    def test_ota_unknown_total_has_no_fake_percent_or_bar_and_shows_received_kb(self):
+        self.run_scenario("ota_unknown")
+
+    def test_ota_network_and_qr_cannot_override_page_idle_restores_cache_and_timeout(
+        self,
+    ):
+        self.run_scenario("ota_network_cache")
+
+    def test_ota_large_sizes_use_64_bit_percent_and_clamp(self):
+        self.run_scenario("ota_large")
+
+    def test_ota_frames_match_between_controllers_and_all_stages_are_distinct(self):
+        frames = [
+            _capture_frames(self.executable, controller, "ota_frames")
+            for controller in ("ssd1306", "sh1106")
+        ]
+        self.assertEqual(len(frames[0]), 4 * 1024)
+        self.assertEqual(frames[0], frames[1])
+        self.assertEqual(
+            len({frames[0][i : i + 1024] for i in range(0, 4096, 1024)}), 4
+        )
+
+    def test_export_ota_preview_uses_actual_37_percent_frame(self):
+        frames = _capture_frames(self.executable, "ssd1306", "ota_frames")
+        frame = _capture_frames(self.executable, "ssd1306", "export_ota")
+        self.assertEqual(frame, frames[:1024])
+        self.assertEqual(
+            frame, _capture_frames(self.executable, "sh1106", "export_ota")
+        )
+        path = PROJECT_ROOT / "build" / "oled-ota-progress.png"
+        self.assertEqual(_write_frame_png(frame, path), path)
+        self.assertTrue(path.read_bytes().startswith(b"\x89PNG\r\n\x1a\n"))
 
     def test_raw_dashboard_export_matches_speed_two_rotation_on(self):
         frames = _capture_frames(self.executable, "ssd1306", "dashboard_frames")

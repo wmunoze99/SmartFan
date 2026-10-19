@@ -13,6 +13,8 @@
 #include <freertos/semphr.h>
 #include <freertos/task.h>
 
+#include "ota_progress.hpp"
+
 class StatusDisplay {
 public:
     enum class Connection : uint8_t {
@@ -45,6 +47,7 @@ public:
     void set_connection(Connection connection, const char *network_name = nullptr);
     void set_fan_state(uint8_t speed, bool rotation);
     void wake();
+    void set_ota_progress(const OtaProgress &progress);
 
 private:
     static constexpr uint16_t kWidth = 128;
@@ -57,6 +60,7 @@ private:
         uint8_t speed = 0;
         bool rotation = false;
         uint32_t activity_sequence = 0;
+        OtaProgress ota_progress;
         std::array<char, kMaxQrPayloadLength> qr_payload{};
         std::array<char, 33> network_name{};
     };
@@ -71,6 +75,7 @@ private:
     esp_err_t set_display_power(bool on);
     void render(const State &state);
     void render_dashboard(const State &state);
+    void render_ota(const OtaProgress &progress);
     void render_qr(const char *payload);
     void draw_qr(const uint8_t *qrcode);
     void clear();

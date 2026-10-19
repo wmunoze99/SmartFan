@@ -306,6 +306,10 @@ const std::array<uint8_t, 5> &expected_glyph(char character)
         {' ', {0x00, 0x00, 0x00, 0x00, 0x00}}, {'?', {0x02, 0x01, 0x51, 0x09, 0x06}},
         {'_', {0x40, 0x40, 0x40, 0x40, 0x40}}, {'.', {0x00, 0x60, 0x60, 0x00, 0x00}},
         {'-', {0x08, 0x08, 0x08, 0x08, 0x08}},
+        {'%', {0x23, 0x13, 0x08, 0x64, 0x62}}, {'/', {0x20, 0x10, 0x08, 0x04, 0x02}},
+        {'B', {0x7f, 0x49, 0x49, 0x49, 0x36}}, {'K', {0x7f, 0x08, 0x14, 0x22, 0x41}},
+        {'U', {0x3f, 0x40, 0x40, 0x40, 0x3f}}, {'V', {0x1f, 0x20, 0x40, 0x20, 0x1f}},
+        {'Y', {0x07, 0x08, 0x70, 0x08, 0x07}},
         {'0', {0x3e, 0x51, 0x49, 0x45, 0x3e}}, {'1', {0x00, 0x42, 0x7f, 0x40, 0x00}},
         {'2', {0x42, 0x61, 0x51, 0x49, 0x46}}, {'3', {0x21, 0x41, 0x45, 0x4b, 0x31}},
         {'4', {0x18, 0x14, 0x12, 0x7f, 0x10}}, {'5', {0x27, 0x45, 0x45, 0x45, 0x39}},
@@ -538,6 +542,172 @@ void ssid_status_and_cache(Controller controller)
     f.power({{true, 0}, {false, 30000}, {true, 40000}, {false, 70000}});
     f.wakes_redrawn();
 }
+void expect_ota(const fake::Frame &frame, const std::string &percent,
+                const std::string &bytes, const std::string &stage, int filled)
+{
+    expect_text(frame, 19, 0, "FIRMWARE UPDATE");
+    expect_text(frame, (128 - (static_cast<int>(percent.size()) * 6 - 1) * 3) / 2, 15, percent, 3);
+    expect_text(frame, (128 - (static_cast<int>(bytes.size()) * 6 - 1)) / 2, 38, bytes);
+    expect_text(frame, (128 - (static_cast<int>(stage.size()) * 6 - 1)) / 2, 57, stage);
+    for (int x = 0; x < 128; ++x) require(pixel(frame, x, 10), "missing OTA header separator");
+    for (int y = 47; y <= 54; ++y) {
+        for (int x = 4; x <= 123; ++x) {
+            const bool border = y == 47 || y == 54 || x == 4 || x == 123;
+            const bool fill = y >= 49 && y < 53 && x >= 6 && x < 6 + filled;
+            require(pixel(frame, x, y) == (border || fill), "OTA bar fill/border mismatch");
+        }
+    }
+}
+
+fake::Frame capture_ota(Controller controller, OtaProgress progress)
+{
+    Fixture f(controller, 0);
+    f.display.set_ota_progress(progress);
+    f.run();
+    return f.last_frame();
+}
+
+void ota_wake_keepawake(Controller controller)
+{
+    Fixture f(controller);
+    fake::Frame stalled;
+    size_t frames = 0;
+    f.at(30001, [&] { f.power({{true, 0}, {false, 30000}}); });
+    f.at(31000, [&] { f.display.set_ota_progress({OtaStage::downloading, 512, 100000}); });
+    f.at(31001, [&] {
+        f.power({{true, 0}, {false, 30000}, {true, 31000}});
+        f.blocked(portMAX_DELAY);
+        stalled = f.last_frame();
+        frames = f.frames();
+    });
+    f.at(120000, [&] {
+        require(f.last_frame() == stalled && f.frames() == frames, "stalled OTA unexpectedly redrew");
+        f.blocked(portMAX_DELAY);
+        f.display.set_ota_progress({OtaStage::verifying, 100000, 100000});
+    });
+    f.at(200000, [&] {
+        f.power({{true, 0}, {false, 30000}, {true, 31000}});
+        f.blocked(portMAX_DELAY);
+        f.display.set_ota_progress({OtaStage::restarting, 100000, 100000});
+    });
+    f.at(300000, [&] {
+        f.power({{true, 0}, {false, 30000}, {true, 31000}});
+        f.blocked(portMAX_DELAY);
+    });
+    f.run();
+    f.power({{true, 0}, {false, 30000}, {true, 31000}});
+    f.wakes_redrawn();
+}
+
+void ota_render(Controller controller)
+{
+    Fixture f(controller);
+    fake::Frame downloading, verifying;
+    size_t frames = 0;
+    f.at(1, [&] {
+        OtaProgress progress{OtaStage::downloading, 1964 * 1024, 5240 * 1024};
+        f.display.set_ota_progress(progress);
+        progress = {}; // Queue must retain its own progress snapshot.
+    });
+    f.at(2, [&] {
+        downloading = f.last_frame();
+        expect_ota(downloading, "37%", "1964/5240 KB", "DOWNLOADING", 42);
+        frames = f.frames();
+        f.display.set_ota_progress({OtaStage::downloading, 1964 * 1024, 5240 * 1024});
+    });
+    f.at(3, [&] {
+        require(f.frames() == frames, "identical progress should not redraw");
+        f.display.set_ota_progress({OtaStage::downloading, 2000 * 1024, 5240 * 1024});
+    });
+    f.at(4, [&] {
+        expect_ota(f.last_frame(), "38%", "2000/5240 KB", "DOWNLOADING", 44);
+        require(f.last_frame() != downloading, "changed percentage not rendered");
+        f.display.set_ota_progress({OtaStage::verifying, 5240 * 1024, 5240 * 1024});
+    });
+    f.at(5, [&] {
+        verifying = f.last_frame();
+        expect_ota(verifying, "100%", "5240/5240 KB", "VERIFYING", 116);
+        f.display.set_ota_progress({OtaStage::restarting, 5240 * 1024, 5240 * 1024});
+    });
+    f.at(6, [&] {
+        expect_ota(f.last_frame(), "100%", "5240/5240 KB", "RESTARTING", 116);
+        require(region(f.last_frame(), 0, 0, 128, 56) == region(verifying, 0, 0, 128, 56),
+                "stage-only update changed percentage/bytes/bar");
+        require(f.last_frame() != verifying, "stage-only change did not render");
+    });
+    f.run();
+}
+
+void ota_unknown(Controller controller)
+{
+    Fixture f(controller);
+    f.display.set_ota_progress({OtaStage::downloading, 16 * 1024, 0});
+    f.at(1, [&] {
+        expect_ota(f.last_frame(), "--%", "16 KB RECEIVED", "DOWNLOADING", 0);
+        f.display.set_ota_progress({OtaStage::downloading, 32 * 1024, 0});
+    });
+    f.at(2, [&] {
+        expect_ota(f.last_frame(), "--%", "32 KB RECEIVED", "DOWNLOADING", 0);
+        f.display.set_ota_progress({OtaStage::verifying, 32 * 1024, 32 * 1024});
+    });
+    f.at(3, [&] { expect_ota(f.last_frame(), "100%", "32/32 KB", "VERIFYING", 116); });
+    f.run();
+}
+
+void ota_network_cache(Controller controller)
+{
+    const auto expected = capture_dashboard(controller, 3, true, Connection::online, "New_WiFi");
+    Fixture f(controller);
+    fake::Frame ota;
+    f.display.set_fan_state(1, false);
+    f.at(1000, [&] { f.display.set_ota_progress({OtaStage::downloading, 1964 * 1024, 5240 * 1024}); });
+    f.at(1001, [&] { ota = f.last_frame(); });
+    f.at(2000, [&] {
+        f.display.set_connection(Connection::offline);
+        f.display.set_fan_state(3, true);
+    });
+    f.at(2001, [&] { require(f.last_frame() == ota, "network/fan state replaced OTA page"); });
+    f.at(3000, [&] { f.display.set_connection(Connection::online, "New_WiFi"); });
+    f.at(3001, [&] { require(f.last_frame() == ota, "SSID change replaced OTA page"); });
+    f.at(4000, [&] { f.display.set_commissioning_payload("MT:SHOULD-NOT-RENDER"); });
+    f.at(4001, [&] {
+        require(f.last_frame() == ota && fake::runtime.qr_payloads.empty(), "QR overrode OTA page");
+    });
+    f.at(5000, [&] { f.display.set_connection(Connection::online, "New_WiFi"); });
+    f.at(90000, [&] {
+        f.power({{true, 0}});
+        f.display.set_ota_progress({});
+    });
+    f.at(90001, [&] {
+        require(f.last_frame() == expected, "idle failed to restore latest cached dashboard");
+        expect_footer(f.last_frame(), "New_WiFi");
+    });
+    f.at(119000, [&] { f.display.set_ota_progress({}); }); // Duplicate idle must not extend sleep.
+    f.at(119999, [&] { f.power({{true, 0}}); });
+    f.at(120001, [&] { f.power({{true, 0}, {false, 120000}}); f.blocked(portMAX_DELAY); });
+    f.run();
+    f.power({{true, 0}, {false, 120000}});
+}
+
+void ota_large(Controller controller)
+{
+    expect_ota(capture_ota(controller, {OtaStage::downloading, 1000000000, 2000000000}),
+               "50%", "976562/1953125 KB", "DOWNLOADING", 58);
+    expect_ota(capture_ota(controller, {OtaStage::downloading, UINT32_MAX, UINT32_MAX}),
+               "100%", "4194303/4194303 KB", "DOWNLOADING", 116);
+    expect_ota(capture_ota(controller, {OtaStage::downloading, 2048, 1024}),
+               "100%", "2/1 KB", "DOWNLOADING", 116);
+}
+
+void ota_frames(Controller controller)
+{
+    const auto frame = capture_ota(controller, {OtaStage::downloading, 727 * 1024, 1964 * 1024});
+    expect_ota(frame, "37%", "727/1964 KB", "DOWNLOADING", 42);
+    write_frame(frame);
+    write_frame(capture_ota(controller, {OtaStage::downloading, 16 * 1024, 0}));
+    write_frame(capture_ota(controller, {OtaStage::verifying, 1964 * 1024, 1964 * 1024}));
+    write_frame(capture_ota(controller, {OtaStage::restarting, 1964 * 1024, 1964 * 1024}));
+}
 } // namespace
 
 int main(int argc, char **argv)
@@ -563,6 +733,13 @@ int main(int argc, char **argv)
         else if (scenario == "ssid_utf8") ssid_utf8(controller);
         else if (scenario == "connection_footers") connection_footers(controller);
         else if (scenario == "ssid_status_and_cache") ssid_status_and_cache(controller);
+        else if (scenario == "ota_wake_keepawake") ota_wake_keepawake(controller);
+        else if (scenario == "ota_render") ota_render(controller);
+        else if (scenario == "ota_unknown") ota_unknown(controller);
+        else if (scenario == "ota_network_cache") ota_network_cache(controller);
+        else if (scenario == "ota_large") ota_large(controller);
+        else if (scenario == "ota_frames") ota_frames(controller);
+        else if (scenario == "export_ota") write_frame(capture_ota(controller, {OtaStage::downloading, 727 * 1024, 1964 * 1024}));
         else if (scenario == "export_dashboard") write_frame(capture_dashboard(controller));
         else if (scenario == "export_offline") write_frame(capture_dashboard(controller, 0, false, Connection::offline));
         else throw std::runtime_error("unknown scenario: " + scenario);

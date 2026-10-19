@@ -35,7 +35,9 @@ SANITIZER_ENV = {
 
 
 def _compile(command):
-    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
+    result = subprocess.run(
+        command, capture_output=True, text=True, timeout=60, check=False
+    )
     if result.returncode:
         raise RuntimeError(
             f"Native compilation failed:\n{result.stdout}{result.stderr}"
@@ -87,6 +89,7 @@ def setUpModule():
         capture_output=True,
         text=True,
         timeout=60,
+        check=False,
     )
     if result.returncode == 0:
         result = subprocess.run(
@@ -95,6 +98,7 @@ def setUpModule():
             text=True,
             env=SANITIZER_ENV,
             timeout=10,
+            check=False,
         )
     if result.returncode == 0:
         configurations["asan+ubsan"] = sanitizer_flags
@@ -132,6 +136,7 @@ class NativeScenarios(unittest.TestCase):
                     text=True,
                     env=SANITIZER_ENV,
                     timeout=10,
+                    check=False,
                 )
                 self.assertEqual(
                     result.returncode,

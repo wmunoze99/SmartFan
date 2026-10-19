@@ -1,6 +1,8 @@
 #include "status_display.hpp"
 
 #include <algorithm>
+#include <cinttypes>
+#include <cstdio>
 #include <cstring>
 
 #include <esp_check.h>
@@ -323,6 +325,25 @@ void StatusDisplay::wake()
     publish();
 }
 
+void StatusDisplay::set_ota_progress(const OtaProgress &progress)
+{
+    if (!ready_) {
+        return;
+    }
+    xSemaphoreTake(state_mutex_, portMAX_DELAY);
+    const auto &previous = state_.ota_progress;
+    const bool changed = previous.stage != progress.stage || previous.received_bytes != progress.received_bytes ||
+                         previous.total_bytes != progress.total_bytes;
+    state_.ota_progress = progress;
+    if (changed) {
+        ++state_.activity_sequence;
+    }
+    xSemaphoreGive(state_mutex_);
+    if (changed) {
+        publish();
+    }
+}
+
 void StatusDisplay::task_entry(void *context)
 {
     static_cast<StatusDisplay *>(context)->task();
@@ -351,8 +372,9 @@ void StatusDisplay::task()
 
     while (true) {
         const bool pairing = state.connection == Connection::commissioning && state.qr_payload[0] != '\0';
+        const bool keep_awake = pairing || state.ota_progress.stage != OtaStage::idle;
         TickType_t wait = portMAX_DELAY;
-        if (display_on && timeout != 0 && !pairing) {
+        if (display_on && timeout != 0 && !keep_awake) {
             const TickType_t elapsed = xTaskGetTickCount() - last_activity;
             wait = elapsed < timeout ? timeout - elapsed : 0;
         }
@@ -361,11 +383,12 @@ void StatusDisplay::task()
         if (xQueueReceive(queue_, &next, wait) == pdTRUE) {
             const bool activity = next.activity_sequence != state.activity_sequence;
             const bool next_pairing = next.connection == Connection::commissioning && next.qr_payload[0] != '\0';
-            if (activity || pairing != next_pairing) {
+            const bool next_keep_awake = next_pairing || next.ota_progress.stage != OtaStage::idle;
+            if (activity || keep_awake != next_keep_awake) {
                 last_activity = xTaskGetTickCount();
             }
             state = next;
-            if (!display_on && !activity && !next_pairing) {
+            if (!display_on && !activity && !next_keep_awake) {
                 continue;
             }
 
@@ -379,7 +402,7 @@ void StatusDisplay::task()
                     ESP_LOGW(kTag, "OLED wake failed: %s", esp_err_to_name(err));
                 }
             }
-        } else if (display_on && timeout != 0 && !pairing) {
+        } else if (display_on && timeout != 0 && !keep_awake) {
             esp_err_t err = set_display_power(false);
             if (err == ESP_OK) {
                 display_on = false;
@@ -430,7 +453,9 @@ void StatusDisplay::cleanup()
 void StatusDisplay::render(const State &state)
 {
     clear();
-    if (state.connection == Connection::commissioning && state.qr_payload[0] != '\0') {
+    if (state.ota_progress.stage != OtaStage::idle) {
+        render_ota(state.ota_progress);
+    } else if (state.connection == Connection::commissioning && state.qr_payload[0] != '\0') {
         render_qr(state.qr_payload.data());
     } else {
         render_dashboard(state);
@@ -439,6 +464,45 @@ void StatusDisplay::render(const State &state)
     if (err != ESP_OK) {
         ESP_LOGE(kTag, "OLED update failed: %s", esp_err_to_name(err));
     }
+}
+
+void StatusDisplay::render_ota(const OtaProgress &progress)
+{
+    draw_text(19, 0, "FIRMWARE UPDATE");
+    fill_rect(0, 10, kWidth, 1, true);
+
+    char label[32];
+    uint32_t percent = 0;
+    if (progress.total_bytes != 0) {
+        percent = static_cast<uint32_t>(std::min<uint64_t>(100,
+            static_cast<uint64_t>(progress.received_bytes) * 100 / progress.total_bytes));
+        std::snprintf(label, sizeof(label), "%" PRIu32 "%%", percent);
+    } else {
+        std::strcpy(label, "--%");
+    }
+    draw_text((kWidth - (static_cast<int>(std::strlen(label)) * 6 - 1) * 3) / 2, 15, label, 3);
+
+    if (progress.total_bytes != 0) {
+        std::snprintf(label, sizeof(label), "%" PRIu32 "/%" PRIu32 " KB",
+                      progress.received_bytes / 1024, progress.total_bytes / 1024);
+    } else {
+        std::snprintf(label, sizeof(label), "%" PRIu32 " KB RECEIVED", progress.received_bytes / 1024);
+    }
+    draw_text((kWidth - (static_cast<int>(std::strlen(label)) * 6 - 1)) / 2, 38, label);
+
+    fill_rect(4, 47, 120, 1, true);
+    fill_rect(4, 54, 120, 1, true);
+    fill_rect(4, 47, 1, 8, true);
+    fill_rect(123, 47, 1, 8, true);
+    fill_rect(6, 49, static_cast<int>(116U * percent / 100U), 4, true);
+
+    const char *stage = "DOWNLOADING";
+    if (progress.stage == OtaStage::verifying) {
+        stage = "VERIFYING";
+    } else if (progress.stage == OtaStage::restarting) {
+        stage = "RESTARTING";
+    }
+    draw_text((kWidth - (static_cast<int>(std::strlen(stage)) * 6 - 1)) / 2, 57, stage);
 }
 
 void StatusDisplay::render_dashboard(const State &state)

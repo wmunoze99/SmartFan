@@ -183,23 +183,60 @@ esp_err_t OtaManager::check_for_update()
     ESP_LOGI(kTag, "Installing firmware %s (current %s)", remote_description.version,
              current_description->version);
 
+    OtaProgress progress{OtaStage::downloading};
+    uint32_t last_percent = 0;
+    uint32_t last_reported_bytes = 0;
+    const auto report_download = [&](bool force) {
+        const int received = esp_https_ota_get_image_len_read(ota_handle);
+        const int total = esp_https_ota_get_image_size(ota_handle);
+        progress.received_bytes = received > 0 ? static_cast<uint32_t>(received) : 0;
+        progress.total_bytes = total > 0 ? static_cast<uint32_t>(total) : 0;
+        const uint32_t percent = progress.total_bytes == 0 ? 0 :
+            progress.received_bytes >= progress.total_bytes ? 100 :
+            static_cast<uint32_t>((static_cast<uint64_t>(progress.received_bytes) * 100) /
+                                  progress.total_bytes);
+        if (force || (progress.total_bytes != 0 ? percent != last_percent :
+                      progress.received_bytes >= last_reported_bytes &&
+                      progress.received_bytes - last_reported_bytes >= 16 * 1024)) {
+            notify_progress(progress);
+            last_percent = percent;
+            last_reported_bytes = progress.received_bytes;
+        }
+    };
+    report_download(true);
+
     do {
         err = esp_https_ota_perform(ota_handle);
+        report_download(false);
     } while (err == ESP_ERR_HTTPS_OTA_IN_PROGRESS);
 
     if (err != ESP_OK || !esp_https_ota_is_complete_data_received(ota_handle)) {
         esp_https_ota_abort(ota_handle);
         update_in_progress_.store(false);
+        notify_progress({});
         return err == ESP_OK ? ESP_ERR_INVALID_SIZE : err;
     }
+
+    progress.stage = OtaStage::verifying;
+    if (progress.total_bytes == 0) {
+        progress.total_bytes = progress.received_bytes;
+    }
+    progress.received_bytes = progress.total_bytes;
+    notify_progress(progress);
 
     err = esp_https_ota_finish(ota_handle);
     if (err != ESP_OK) {
         update_in_progress_.store(false);
+        notify_progress({});
         return err;
     }
 
     ESP_LOGI(kTag, "Firmware installed; rebooting");
+    progress.stage = OtaStage::restarting;
+    notify_progress(progress);
+    if (config_.progress_callback != nullptr) {
+        vTaskDelay(pdMS_TO_TICKS(300));
+    }
     esp_restart();
     return ESP_OK;
 }
@@ -207,6 +244,13 @@ esp_err_t OtaManager::check_for_update()
 bool OtaManager::ready_to_update() const
 {
     return config_.ready_callback == nullptr || config_.ready_callback(config_.callback_context);
+}
+
+void OtaManager::notify_progress(const OtaProgress &progress) const
+{
+    if (config_.progress_callback != nullptr) {
+        config_.progress_callback(progress, config_.callback_context);
+    }
 }
 
 bool OtaManager::parse_version(const char *text, Version &version)

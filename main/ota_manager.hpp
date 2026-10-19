@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ota_progress.hpp"
+
 #include <atomic>
 #include <cstdint>
 #include <string>
@@ -12,6 +14,7 @@
 class OtaManager {
 public:
     using ReadyCallback = bool (*)(void *context);
+    using ProgressCallback = void (*)(const OtaProgress &, void *context);
 
     struct Config {
         const char *url;
@@ -20,6 +23,7 @@ public:
         uint32_t retry_interval_seconds;
         ReadyCallback ready_callback;
         void *callback_context;
+        ProgressCallback progress_callback = nullptr;
     };
 
     explicit OtaManager(Config config);
@@ -47,6 +51,7 @@ private:
     void task();
     esp_err_t check_for_update();
     bool ready_to_update() const;
+    void notify_progress(const OtaProgress &progress) const;
 
     Config config_;
     std::string release_url_;

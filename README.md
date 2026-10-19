@@ -90,6 +90,14 @@ python3 -m unittest discover -s tests -v
 
 These standard-library tests compile the real variant helper for both controllers with temporary `sdkconfig.h` files under `build/`; no ESP-IDF build or Python dependencies are required.
 
+For C++ test diagnostics in Zed, generate the persistent host-test compilation database after cloning or changing test stub headers:
+
+```sh
+python3 tests/configure_clangd.py
+```
+
+`.clangd` uses ESP-IDF's `build/compile_commands.json` for firmware and `.cache/clangd/host-tests` for native test harnesses. SDK shims are generated from the tests' own header lists, without adding ESP32 flags or real SDK headers to the native tests. Vendored/generated files do not emit standalone editor diagnostics; compiler validation and diagnostics in our firmware/tests remain enabled. Restart the C++ language server if old alerts persist after changing its launch arguments.
+
 ## Home Assistant commissioning
 
 The Home Assistant mobile app needs Bluetooth access near the fan for initial commissioning. Add a Matter device and scan the QR code shown on the OLED or printed in the serial log; the commissioning flow provisions the fan with Wi-Fi credentials.
@@ -126,6 +134,10 @@ UDP logging is plaintext, lossy, and unacknowledged. Warning/error bodies are no
 ## HTTPS OTA
 
 The firmware checks a GitHub Release URL after Wi-Fi connects. It installs only a newer semantic version and only while the device is commissioned and the fan is off. Matter data in NVS is preserved. ESP-IDF rollback restores the previous image if the updated firmware cannot complete startup.
+
+During installation, the OLED wakes and shows the download percentage, received/total KiB (labeled `KB`), a progress bar, and `DOWNLOADING`, `VERIFYING`, then `RESTARTING`. Unknown-size responses show `--%` and received bytes instead of a fabricated percentage. The screen stays on throughout installation, and failures restore the latest dashboard with a fresh inactivity timeout. Routine checks, including checks finding no newer firmware, do not wake it. Both display controllers are supported.
+
+The progress screen is available for updates performed **after this feature is installed**; old firmware cannot show it while installing the release that first introduces it.
 
 ### Manual update check
 

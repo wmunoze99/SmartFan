@@ -85,6 +85,10 @@ bool ota_ready(void *)
     return s_commissioned.load() && s_fan.speed() == FanController::Speed::off;
 }
 
+#if CONFIG_FAN_DISPLAY_ENABLED
+void ota_progress_changed(const OtaProgress &progress, void *);
+#endif
+
 OtaManager s_ota({
     .url = CONFIG_FAN_OTA_RELEASE_URL,
     .startup_delay_seconds = CONFIG_FAN_OTA_STARTUP_DELAY_SECONDS,
@@ -92,6 +96,9 @@ OtaManager s_ota({
     .retry_interval_seconds = CONFIG_FAN_OTA_RETRY_INTERVAL_MINUTES * 60U,
     .ready_callback = ota_ready,
     .callback_context = nullptr,
+#if CONFIG_FAN_DISPLAY_ENABLED
+    .progress_callback = ota_progress_changed,
+#endif
 });
 
 void reset_ota_check_switch(intptr_t)
@@ -141,6 +148,13 @@ StatusDisplay s_display({
 #endif
     .sleep_timeout_seconds = CONFIG_FAN_DISPLAY_SLEEP_TIMEOUT_SECONDS,
 });
+
+#if CONFIG_FAN_OTA_ENABLED
+void ota_progress_changed(const OtaProgress &progress, void *)
+{
+    s_display.set_ota_progress(progress);
+}
+#endif
 
 void update_fan_display()
 {

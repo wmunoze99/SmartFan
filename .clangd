@@ -1,3 +1,5 @@
+If:
+  PathExclude: tests/.*
 CompileFlags:
   CompilationDatabase: build
   BuiltinHeaders: QueryDriver
@@ -13,3 +15,20 @@ CompileFlags:
 
 Diagnostics:
   UnusedIncludes: None
+
+---
+If:
+  PathMatch: tests/.*\.(cpp|hpp|h)
+CompileFlags:
+  CompilationDatabase: .cache/clangd/host-tests
+  BuiltinHeaders: Clangd
+Diagnostics:
+  UnusedIncludes: None
+
+---
+If:
+  PathMatch: (managed_components|build)/.*
+Index:
+  Background: Skip
+Diagnostics:
+  Suppress: ['*']

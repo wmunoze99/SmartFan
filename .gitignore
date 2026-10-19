@@ -1,4 +1,5 @@
 build/
+.cache/clangd/host-tests/
 managed_components/
 sdkconfig
 sdkconfig.old
