@@ -107,6 +107,32 @@ menu "Smart fan display"
 
 endmenu
 
+menu "Smart fan diagnostics"
+
+    config FAN_SYSLOG_ENABLED
+        bool "Enable remote UDP syslog"
+        depends on LOG_VERSION_1 && LOG_MODE_TEXT
+        default y
+
+    config FAN_SYSLOG_HOST
+        string "Syslog server hostname or IPv4 address"
+        depends on FAN_SYSLOG_ENABLED
+        default "nas.local"
+
+    config FAN_SYSLOG_PORT
+        int "Syslog UDP port"
+        depends on FAN_SYSLOG_ENABLED
+        range 1 65535
+        default 5514
+
+    config FAN_SYSLOG_HEALTH_INTERVAL_SECONDS
+        int "Health report interval (seconds, 0 = startup/reconnect only)"
+        depends on FAN_SYSLOG_ENABLED
+        range 0 86400
+        default 300
+
+endmenu
+
 menu "Smart fan OTA"
 
     config FAN_OTA_ENABLED

@@ -6,6 +6,7 @@
 #include <esp_check.h>
 #include <esp_err.h>
 #include <esp_log.h>
+#include <esp_netif.h>
 #include <esp_wifi.h>
 #include <nvs_flash.h>
 
@@ -23,6 +24,7 @@
 #include "button_controls.hpp"
 #include "fan_controller.hpp"
 #include "ota_manager.hpp"
+#include "remote_logger.hpp"
 #include "status_display.hpp"
 
 using namespace chip::app::Clusters;
@@ -53,6 +55,25 @@ FanController s_fan({
     .active_high = kRelayActiveHigh,
     .switch_delay_ms = CONFIG_FAN_RELAY_SWITCH_DELAY_MS,
 });
+
+#if CONFIG_FAN_SYSLOG_ENABLED
+RemoteLogger s_remote_logger({
+    .host = CONFIG_FAN_SYSLOG_HOST,
+    .port = CONFIG_FAN_SYSLOG_PORT,
+    .health_interval_seconds = CONFIG_FAN_SYSLOG_HEALTH_INTERVAL_SECONDS,
+});
+
+void update_diagnostics_network_status()
+{
+    esp_netif_t *station = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    esp_netif_ip_info_t address = {};
+    const bool connected = chip::DeviceLayer::ConnectivityMgr().IsWiFiStationConnected();
+    s_remote_logger.set_network_connected(connected && station != nullptr &&
+        esp_netif_get_ip_info(station, &address) == ESP_OK && address.ip.addr != 0);
+}
+#else
+void update_diagnostics_network_status() {}
+#endif
 
 #if CONFIG_FAN_OTA_ENABLED
 static_assert(CONFIG_ESP_MATTER_MAX_DYNAMIC_ENDPOINT_COUNT >= 3,
@@ -212,6 +233,9 @@ void report_fan_state(intptr_t)
     const uint8_t speed = static_cast<uint8_t>(s_fan.speed());
     const uint8_t percent = fan_percent();
     const uint8_t rock = s_fan.rotation_enabled() ? kRockLeftRight : 0;
+#if CONFIG_FAN_SYSLOG_ENABLED
+    s_remote_logger.set_fan_state(speed, rock != 0);
+#endif
 
     auto *server = data_model::provider::get_instance().registry().Get(
         chip::app::ConcreteClusterPath(s_fan_endpoint_id, FanControl::Id));
@@ -359,11 +383,13 @@ void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
     case chip::DeviceLayer::DeviceEventType::kWiFiConnectivityChange:
         update_connection_display();
         update_ota_network_status();
+        update_diagnostics_network_status();
         break;
     case chip::DeviceLayer::DeviceEventType::kInterfaceIpAddressChanged:
         ESP_LOGI(kTag, "Network IP address changed");
         update_connection_display();
         update_ota_network_status();
+        update_diagnostics_network_status();
         break;
     default:
         break;
@@ -500,6 +526,16 @@ extern "C" void app_main()
     ESP_ERROR_CHECK(s_fan.init());
     ESP_ERROR_CHECK(init_nvs());
 
+#if CONFIG_FAN_SYSLOG_ENABLED
+    esp_err_t logging_err = s_remote_logger.start();
+    if (logging_err != ESP_OK) {
+        ESP_LOGW(kTag, "Remote syslog unavailable: %s", esp_err_to_name(logging_err));
+    } else {
+        ESP_LOGI(kTag, "Remote syslog configured for %s:%d (UDP)", CONFIG_FAN_SYSLOG_HOST,
+                 CONFIG_FAN_SYSLOG_PORT);
+    }
+#endif
+
 #if CONFIG_FAN_DISPLAY_ENABLED
     esp_err_t display_err = s_display.init();
     if (display_err != ESP_OK) {
@@ -546,6 +582,7 @@ extern "C" void app_main()
     ESP_ERROR_CHECK(esp_matter::start(app_event_cb));
     restore_fan_state();
     initialize_display_status();
+    update_diagnostics_network_status();
 
 #if CONFIG_FAN_OTA_ENABLED
     ESP_ERROR_CHECK(s_ota.confirm_running_image());

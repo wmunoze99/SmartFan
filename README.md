@@ -104,6 +104,25 @@ The default build omits the development Matter shell to preserve flash space. To
 eim run "idf.py -p /dev/cu.usbmodemXXXX erase-flash flash" v5.5.5
 ```
 
+## Remote diagnostics
+
+UDP syslog is enabled by default for **`nas.local:5514`**. Configure or disable it under `Smart fan diagnostics` in `menuconfig`:
+
+```text
+CONFIG_FAN_SYSLOG_ENABLED=y
+CONFIG_FAN_SYSLOG_HOST="nas.local"
+CONFIG_FAN_SYSLOG_PORT=5514
+CONFIG_FAN_SYSLOG_HEALTH_INTERVAL_SECONDS=300
+```
+
+The receiver gets RFC5424 messages with facility `local0`, a hostname such as `smart-fan-a16e40` (MAC suffix), and the ESP-IDF tag as the application name. Application INFO messages and parsed WARN/ERROR messages are forwarded; noisy Matter INFO, attribute reports, and commissioning-code output are excluded. Existing console logging is preserved. Capture requires ESP-IDF Log V1 text mode; ROM/panic output and arbitrary `printf` output are not forwarded.
+
+Startup/reconnect health and five-minute reports include firmware version, display variant, reset reason, uptime, free/minimum heap, Wi-Fi RSSI, fan state, queue drops, UDP send failures, and running OTA-image state. Set the interval to `0` to keep only startup/reconnect reports. OTA state is not proof that a rollback occurred. Wall-clock timestamps are omitted because the device has no synchronized clock; the collector can timestamp receipt, and messages contain device uptime.
+
+A fixed 16-record queue and a background worker keep DNS and socket operations out of relay control. Logs collected before Wi-Fi connects are buffered only up to that limit; excess messages are dropped. `.local` names use the existing mDNS responder; if multicast cannot reach the NAS, configure its stable IPv4 address instead. Allow UDP port `5514` from the fan network, not from the internet.
+
+UDP logging is plaintext, lossy, and unacknowledged. Warning/error bodies are not comprehensively redacted—use only a trusted LAN and avoid logging secrets. No persistent crash dump or flash-backed log storage is added: after a crash, a subsequent successful boot can report the reset reason, but not the previous panic backtrace. Diagnostics initialization failure does not stop the fan.
+
 ## HTTPS OTA
 
 The firmware checks a GitHub Release URL after Wi-Fi connects. It installs only a newer semantic version and only while the device is commissioned and the fan is off. Matter data in NVS is preserved. ESP-IDF rollback restores the previous image if the updated firmware cannot complete startup.
